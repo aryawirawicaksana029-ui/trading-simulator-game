@@ -1,0 +1,124 @@
+* { box-sizing: border-box; }
+
+body {
+    background: #0d0d1a;
+    color: #eaeaea;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+}
+
+h1 {
+    color: #00b4d8;
+    margin-bottom: 5px;
+    font-size: 26px;
+}
+
+#levelInfo {
+    color: #ffd60a;
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+#modeInfo {
+    margin-bottom: 15px;
+    font-size: 15px;
+    color: #ffd60a;
+    font-weight: bold;
+}
+
+/* --- Info Cards --- */
+#infoRow {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+}
+.card {
+    background: #16213e;
+    border: 1px solid #2a2a4a;
+    border-radius: 10px;
+    padding: 10px 20px;
+    min-width: 150px;
+}
+.card p { margin: 0; font-size: 13px; color: #9a9ab0; }
+.card h3 { margin: 4px 0 0; font-size: 20px; }
+#balanceText { color: #00e0a1; }
+#priceText { color: #ffd60a; }
+#positionText { font-size: 14px; }
+
+/* --- Sentiment Bar --- */
+#sentimentBar {
+    width: 320px;
+    margin: 0 auto 20px;
+}
+#sentimentBar p { font-size: 13px; margin: 2px 0; color: #9a9ab0; }
+#sentimentTrack {
+    background: #2a2a4a;
+    border-radius: 10px;
+    height: 14px;
+    position: relative;
+    overflow: hidden;
+}
+#sentimentFill {
+    background: linear-gradient(90deg, #3a86ff, #ffd60a, #ff4d6d);
+    height: 100%;
+    width: 100%;
+}
+#sentimentMarker {
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    width: 3px;
+    height: 22px;
+    background: white;
+    transition: left 0.4s ease;
+}
+#sentimentText { font-weight: bold; margin-top: 6px; }
+
+/* --- Chart --- */
+#chartContainer {
+    width: 720px;
+    height: 380px;
+    margin: 0 auto;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #2a2a4a;
+}
+
+/* --- Controls --- */
+#controls { margin-top: 20px; }
+button {
+    border: none;
+    border-radius: 8px;
+    padding: 14px 30px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 0 8px;
+    transition: transform 0.15s ease;
+}
+button:hover { transform: scale(1.05); }
+#buyBtn { background: #00b4d8; color: #0d0d1a; }
+#sellBtn { background: #ff4d6d; color: #0d0d1a; }
+
+/* --- Overlay (Game Over / Level Clear) --- */
+.overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    z-index: 100;
+}
+.overlay.show { display: flex; }
+.overlay h2 { font-size: 32px; margin-bottom: 10px; }
+.overlay p { font-size: 16px; color: #ccc; margin-bottom: 20px; }
+.overlay button {
+    background: #00b4d8;
+    color: #0d0d1a;
+}
