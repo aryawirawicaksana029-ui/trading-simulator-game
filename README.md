@@ -2,6 +2,8 @@
 
 An educational trading simulator game built with vanilla JavaScript and [TradingView Lightweight Charts](https://github.com/tradingview/lightweight-charts). Designed with a **"Zero Jargon"** philosophy — teaching real trading concepts (support/resistance, trend, stop loss, market sentiment) through simple visuals that anyone can understand, even without any finance background.
 
+🔗 Live demo: https://aryawirawicaksana029-ui.github.io/trading-simulator-game/
+
 ## 🌟 Why This Project
 
 Most trading education content is full of jargon (RSI, Fibonacci, Moving Average) that scares beginners away. This game strips that away and teaches the *intuition* behind trading through gameplay: color, shape, and simple language — while still simulating real market behavior patterns underneath.
