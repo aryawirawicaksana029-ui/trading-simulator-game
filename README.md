@@ -8,6 +8,10 @@ An educational trading simulator game built with vanilla JavaScript and [Trading
 
 Most trading education content is full of jargon (RSI, Fibonacci, Moving Average) that scares beginners away. This game strips that away and teaches the *intuition* behind trading through gameplay: color, shape, and simple language — while still simulating real market behavior patterns underneath.
 
+## 📸 Preview
+
+<img width="1188" height="1054" alt="image" src="https://github.com/user-attachments/assets/cae67098-4064-47c4-b075-a34c68262f4a" />
+
 ## 🕹️ Features
 
 - **Live Candlestick Chart** — powered by TradingView's Lightweight Charts library, updating in real time
