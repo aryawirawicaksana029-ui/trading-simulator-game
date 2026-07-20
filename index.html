@@ -42,9 +42,15 @@
 
     <div id="chartContainer"></div>
 
+    <div id="aiCoachPanel">
+        <div id="aiCoachHeader">🤖 AI COACH <span id="aiCoachStatus">⚪ Off</span></div>
+        <p id="aiCoachText">Turn on the AI Coach (⚙️ button below) to get real-time feedback on your trades.</p>
+    </div>
+
     <div id="controls">
         <button id="buyBtn">🟢 BUY</button>
         <button id="sellBtn">🔴 SELL</button>
+        <button id="aiSettingsBtn">⚙️ AI Coach</button>
     </div>
 
     <!-- ===== OVERLAYS ===== -->
@@ -64,6 +70,34 @@
         <h2>🏆 YOU WIN!</h2>
         <p>All levels completed. You now understand the basics of trading money management!</p>
         <button onclick="restartLevel()">🔄 Play Again</button>
+    </div>
+
+    <div class="overlay" id="aiSettingsOverlay">
+        <h2>🤖 AI Coach Settings</h2>
+        <p>Powered by <a href="https://console.groq.com" target="_blank" rel="noopener">Groq</a>. Your key is sent directly from your browser to Groq's API and is never saved to any server.</p>
+        <div class="settingsForm">
+            <label for="groqApiKeyInput">Groq API Key</label>
+            <input type="password" id="groqApiKeyInput" placeholder="gsk_..." autocomplete="off">
+
+            <label for="groqModelSelect">Model</label>
+            <select id="groqModelSelect">
+                <option value="openai/gpt-oss-20b">openai/gpt-oss-20b (fast, default)</option>
+                <option value="openai/gpt-oss-120b">openai/gpt-oss-120b (smarter, slower)</option>
+                <option value="moonshotai/kimi-k2-instruct-0905">moonshotai/kimi-k2-instruct-0905</option>
+                <option value="qwen/qwen3-32b">qwen/qwen3-32b</option>
+            </select>
+
+            <label class="checkboxLabel">
+                <input type="checkbox" id="aiEnabledCheckbox"> Enable AI Coach commentary
+            </label>
+            <label class="checkboxLabel">
+                <input type="checkbox" id="rememberKeyCheckbox"> Remember key for this browser tab only (sessionStorage)
+            </label>
+        </div>
+        <div class="overlayBtnRow">
+            <button onclick="saveAISettings()">💾 Save & Close</button>
+            <button onclick="hideAllOverlays()" class="secondaryBtn">Cancel</button>
+        </div>
     </div>
 
     <script src="script.js"></script>

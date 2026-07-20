@@ -88,6 +88,51 @@ h1 {
     border: 1px solid #2a2a4a;
 }
 
+/* --- AI Coach Panel --- */
+#aiCoachPanel {
+    width: 720px;
+    max-width: 100%;
+    margin: 15px auto 0;
+    background: #16213e;
+    border: 1px solid #2a2a4a;
+    border-left: 3px solid #00b4d8;
+    border-radius: 10px;
+    padding: 12px 18px;
+    text-align: left;
+}
+#aiCoachHeader {
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    color: #9a9ab0;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+#aiCoachStatus { font-size: 12px; }
+#aiCoachText {
+    margin: 0;
+    font-size: 14.5px;
+    color: #eaeaea;
+    line-height: 1.4;
+    min-height: 20px;
+}
+#aiCoachText.thinking {
+    color: #9a9ab0;
+    font-style: italic;
+}
+#aiCoachText.thinking::after {
+    content: '...';
+    animation: aiThinkingDots 1.2s steps(4, end) infinite;
+}
+@keyframes aiThinkingDots {
+    0% { content: '.'; }
+    33% { content: '..'; }
+    66% { content: '...'; }
+    100% { content: '.'; }
+}
+
 /* --- Controls --- */
 #controls { margin-top: 20px; }
 button {
@@ -103,6 +148,50 @@ button {
 button:hover { transform: scale(1.05); }
 #buyBtn { background: #00b4d8; color: #0d0d1a; }
 #sellBtn { background: #ff4d6d; color: #0d0d1a; }
+#aiSettingsBtn {
+    background: #2a2a4a;
+    color: #eaeaea;
+    font-size: 14px;
+    padding: 14px 20px;
+}
+
+/* --- AI Settings Form (inside overlay) --- */
+.settingsForm {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 320px;
+    max-width: 85vw;
+    text-align: left;
+    margin-bottom: 15px;
+}
+.settingsForm label {
+    font-size: 13px;
+    color: #9a9ab0;
+    margin-top: 8px;
+}
+.settingsForm input[type="password"],
+.settingsForm select {
+    background: #0d0d1a;
+    border: 1px solid #2a2a4a;
+    color: #eaeaea;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 14px;
+}
+.checkboxLabel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #ccc !important;
+    margin-top: 10px !important;
+}
+.checkboxLabel input { width: 16px; height: 16px; }
+.overlayBtnRow { display: flex; gap: 10px; }
+.secondaryBtn { background: #2a2a4a !important; color: #eaeaea !important; }
+#aiSettingsOverlay p { max-width: 380px; font-size: 14px; }
+#aiSettingsOverlay a { color: #00b4d8; }
 
 /* --- Overlay (Game Over / Level Clear) --- */
 .overlay {
