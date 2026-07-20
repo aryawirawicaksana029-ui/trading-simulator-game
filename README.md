@@ -76,7 +76,7 @@ Built as part of a self-directed 53-day AI Engineering learning journey — comb
 ## 🔮 Future Plans
 
 - [x] AI-powered commentary — integrated Groq API (`⚙️ AI Coach` button in-game) to give players real-time feedback on their decisions (e.g. "You bought right as the market hit Extreme Greed — risky!"). Get a free key at [console.groq.com](https://console.groq.com), paste it into the AI Coach settings, and enable it. Without a key, the game still shows built-in fallback commentary so the feature always works. **Note:** since this is a static no-backend site, the key lives only in your browser tab (memory, or `sessionStorage` if you opt in) and is sent directly to Groq — don't hardcode your own key into the source before sharing/deploying this project; wire it through the planned Flask backend instead if you ever make this public.
-- [ ] Trading Diary / Replay — review past decisions after Game Over
+- [x] Trading Diary / Replay — every BUY/SELL is logged (entry & exit price, Fear/Greed at the time, P/L, and the AI Coach's comment if enabled). Click **📔 Diary** anytime, or use the same button on the Game Over / Level Clear / Win screens, to review the full history with win-rate and net P/L stats.
 - [ ] Interactive Level 0 tutorial with live hints
 - [ ] Sound effects for profit/loss events
 - [ ] Achievement/badge system (e.g. "Always uses Stop Loss")

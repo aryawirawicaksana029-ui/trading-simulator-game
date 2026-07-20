@@ -26,6 +26,10 @@ let groqModel = "openai/gpt-oss-20b";
 let aiCoachEnabled = false;
 let aiRequestInFlight = false;
 
+// --- Trading Diary State ---
+let tradeLog = [];        // full history of trades this run: entry + exit details + AI commentary
+let openTradeId = null;   // id of the currently open trade in tradeLog, or null
+
 const levels = [
     { name: "Level 1: Calm Market", target: 12000, volatility: 15, speed: 1000 },
     { name: "Level 2: Stormy Market",  target: 16000, volatility: 40, speed: 600 },
@@ -322,6 +326,14 @@ function setAICoachText(text, thinking = false) {
     el.classList.toggle("thinking", thinking);
 }
 
+function recordCommentaryToLog(context, text) {
+    if (context.tradeId === undefined || context.tradeId === null) return;
+    const trade = tradeLog.find(t => t.id === context.tradeId);
+    if (!trade) return;
+    if (context.type === "BUY") trade.entryComment = text;
+    else trade.exitComment = text;
+}
+
 function updateAICoachStatusUI() {
     const dot = document.getElementById("aiCoachStatus");
     if (!aiCoachEnabled) dot.innerText = "⚪ Off";
@@ -334,7 +346,9 @@ async function requestAICommentary(context) {
 
     // No key entered yet -> just use a canned line, no network call.
     if (!groqApiKey) {
-        setAICoachText(fallbackFor(context));
+        const text = fallbackFor(context);
+        setAICoachText(text);
+        recordCommentaryToLog(context, text);
         return;
     }
 
@@ -366,12 +380,15 @@ async function requestAICommentary(context) {
         const data = await response.json();
         const text = data.choices && data.choices[0] && data.choices[0].message.content
             ? data.choices[0].message.content.trim()
-            : null;
+            : fallbackFor(context);
 
-        setAICoachText(text || fallbackFor(context));
+        setAICoachText(text);
+        recordCommentaryToLog(context, text);
     } catch (err) {
         console.warn("AI Coach: falling back to canned commentary —", err);
-        setAICoachText(fallbackFor(context) + " (offline commentary — Groq request failed)");
+        const text = fallbackFor(context) + " (offline commentary — Groq request failed)";
+        setAICoachText(text);
+        recordCommentaryToLog(context, text);
     } finally {
         aiRequestInFlight = false;
     }
@@ -423,6 +440,84 @@ function saveAISettings() {
     }
 }
 
+// ================= TRADING DIARY / REPLAY =================
+function escapeHtml(str) {
+    if (!str) return "";
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function fgWordLabel(idx) {
+    if (idx === undefined || idx === null) return "Unknown sentiment";
+    const labels = {
+        extreme_greed: "🔴 Extreme Greed",
+        greed: "🟡 Greed",
+        neutral: "🟢 Neutral",
+        fear: "🔵 Fear",
+        extreme_fear: "💀 Extreme Fear"
+    };
+    return `${labels[fgLabel(idx)]} (${idx})`;
+}
+
+const EXIT_REASON_LABEL = {
+    MANUAL: "Manual Sell",
+    SL: "Seatbelt: Stop Loss",
+    TP: "Seatbelt: Take Profit"
+};
+
+function renderTradingDiary() {
+    const listEl = document.getElementById("diaryList");
+    const summaryEl = document.getElementById("diarySummary");
+
+    if (tradeLog.length === 0) {
+        listEl.innerHTML = `<p class="diaryEmpty">No trades yet — your diary fills up as you play.</p>`;
+        summaryEl.innerHTML = "";
+        return;
+    }
+
+    const closedTrades = tradeLog.filter(t => t.exitPrice !== null);
+    const wins = closedTrades.filter(t => t.profit > 0).length;
+    const netPL = closedTrades.reduce((sum, t) => sum + t.profit, 0);
+    const winRate = closedTrades.length ? Math.round((wins / closedTrades.length) * 100) : 0;
+
+    summaryEl.innerHTML = `
+        <div class="diaryStat"><span class="label">TRADES</span><span class="value">${tradeLog.length}</span></div>
+        <div class="diaryStat"><span class="label">WIN RATE</span><span class="value">${winRate}%</span></div>
+        <div class="diaryStat"><span class="label">NET P/L</span><span class="value" style="color:${netPL >= 0 ? '#00e0a1' : '#ff4d6d'}">$${netPL.toFixed(2)}</span></div>
+    `;
+
+    listEl.innerHTML = tradeLog.map(t => {
+        const isOpen = t.exitPrice === null;
+        const isProfit = !isOpen && t.profit >= 0;
+        const reasonLabel = EXIT_REASON_LABEL[t.exitReason] || "Still Open";
+
+        return `
+            <div class="diaryEntry ${isOpen ? "" : (isProfit ? "profit" : "loss")}">
+                <div class="diaryEntryHead">
+                    <span>Trade #${t.id + 1} · ${escapeHtml(t.level)}</span>
+                    <span class="diaryPL ${isOpen ? "" : (isProfit ? "profit-text" : "loss-text")}">
+                        ${isOpen ? "Open" : (isProfit ? "+" : "") + "$" + t.profit.toFixed(2)}
+                    </span>
+                </div>
+                <div class="diaryMeta">
+                    Entry $${t.entryPrice.toFixed(2)} · ${fgWordLabel(t.entryFG)} · ${escapeHtml(t.entryMode.replace("_", " "))}
+                    ${isOpen ? "" : ` → Exit $${t.exitPrice.toFixed(2)} (${reasonLabel})`}
+                </div>
+                ${t.entryComment ? `<div class="diaryComment">🤖 On entry: "${escapeHtml(t.entryComment)}"</div>` : ""}
+                ${t.exitComment ? `<div class="diaryComment">🤖 On exit: "${escapeHtml(t.exitComment)}"</div>` : ""}
+            </div>
+        `;
+    }).join("");
+}
+
+function openTradingDiary() {
+    renderTradingDiary();
+    showOverlay("tradingDiaryOverlay");
+}
+
+function closeDiary() {
+    document.getElementById("tradingDiaryOverlay").classList.remove("show");
+}
+
 // ================= TRADING ACTIONS =================
 function buy() {
     if (position !== null) {
@@ -461,7 +556,20 @@ function buy() {
     document.getElementById('positionText').innerHTML =
         `LONG @ $${entryPrice.toFixed(2)}`;
 
-    requestAICommentary({ type: "BUY", price: entryPrice, slDist, tpDist, fearGreed: calculateFearGreed() });
+    const tradeId = tradeLog.length;
+    tradeLog.push({
+        id: tradeId,
+        level: levels[currentLevel].name,
+        entryPrice,
+        entryFG: calculateFearGreed(),
+        entryMode: marketMode,
+        slDist, tpDist,
+        exitPrice: null, exitReason: null, profit: null, exitFG: null,
+        entryComment: null, exitComment: null
+    });
+    openTradeId = tradeId;
+
+    requestAICommentary({ type: "BUY", price: entryPrice, slDist, tpDist, fearGreed: calculateFearGreed(), tradeId });
 }
 
 function sell(reason = "MANUAL") {
@@ -481,9 +589,21 @@ function sell(reason = "MANUAL") {
     if (reason === "MANUAL") alert(`Profit/Loss: $${profit.toFixed(2)}`);
 
     const fg = calculateFearGreed();
-    if (reason === "MANUAL") requestAICommentary({ type: "SELL_MANUAL", profit, fearGreed: fg });
-    else if (reason === "TP") requestAICommentary({ type: "SELL_TP", profit, fearGreed: fg });
-    else if (reason === "SL") requestAICommentary({ type: "SELL_SL", profit, fearGreed: fg });
+    const closedTradeId = openTradeId;
+    if (closedTradeId !== null) {
+        const trade = tradeLog.find(t => t.id === closedTradeId);
+        if (trade) {
+            trade.exitPrice = currentPrice;
+            trade.exitReason = reason;
+            trade.profit = profit;
+            trade.exitFG = fg;
+        }
+        openTradeId = null;
+    }
+
+    if (reason === "MANUAL") requestAICommentary({ type: "SELL_MANUAL", profit, fearGreed: fg, tradeId: closedTradeId });
+    else if (reason === "TP") requestAICommentary({ type: "SELL_TP", profit, fearGreed: fg, tradeId: closedTradeId });
+    else if (reason === "SL") requestAICommentary({ type: "SELL_SL", profit, fearGreed: fg, tradeId: closedTradeId });
 
     checkWinLose();
 }
@@ -551,6 +671,8 @@ function restartLevel() {
     hideAllOverlays();
     balance = 10000;
     position = null;
+    tradeLog = [];
+    openTradeId = null;
     document.getElementById('balanceText').innerText = balance.toFixed(2);
     document.getElementById('positionText').innerText = "None";
     loadLevel(0);
@@ -565,6 +687,7 @@ function nextLevel() {
 document.getElementById("buyBtn").addEventListener("click", buy);
 document.getElementById("sellBtn").addEventListener("click", () => sell("MANUAL"));
 document.getElementById("aiSettingsBtn").addEventListener("click", openAISettings);
+document.getElementById("diaryBtn").addEventListener("click", openTradingDiary);
 
 loadAISettingsFromSession();
 updateAICoachStatusUI();

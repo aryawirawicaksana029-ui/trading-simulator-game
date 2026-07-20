@@ -51,6 +51,7 @@
         <button id="buyBtn">🟢 BUY</button>
         <button id="sellBtn">🔴 SELL</button>
         <button id="aiSettingsBtn">⚙️ AI Coach</button>
+        <button id="diaryBtn">📔 Diary</button>
     </div>
 
     <!-- ===== OVERLAYS ===== -->
@@ -58,18 +59,21 @@
         <h2>💀 GAME OVER</h2>
         <p>Oops, you went bankrupt because you forgot to set a proper seatbelt (Stop Loss).<br>Let's try again!</p>
         <button onclick="restartLevel()">🔄 Try Again</button>
+        <button onclick="openTradingDiary()" class="secondaryBtn">📔 View Trading Diary</button>
     </div>
 
     <div class="overlay" id="levelClearOverlay">
         <h2>🎉 LEVEL CLEAR!</h2>
         <p id="levelClearMsg">You have successfully reached the target balance!</p>
         <button onclick="nextLevel()">➡️ Next Level</button>
+        <button onclick="openTradingDiary()" class="secondaryBtn">📔 View Trading Diary</button>
     </div>
 
     <div class="overlay" id="gameWinOverlay">
         <h2>🏆 YOU WIN!</h2>
         <p>All levels completed. You now understand the basics of trading money management!</p>
         <button onclick="restartLevel()">🔄 Play Again</button>
+        <button onclick="openTradingDiary()" class="secondaryBtn">📔 View Trading Diary</button>
     </div>
 
     <div class="overlay" id="aiSettingsOverlay">
@@ -97,6 +101,15 @@
         <div class="overlayBtnRow">
             <button onclick="saveAISettings()">💾 Save & Close</button>
             <button onclick="hideAllOverlays()" class="secondaryBtn">Cancel</button>
+        </div>
+    </div>
+
+    <div class="overlay" id="tradingDiaryOverlay">
+        <div id="diaryContent">
+            <h2>📔 Trading Diary</h2>
+            <div id="diarySummary"></div>
+            <div id="diaryList"></div>
+            <button onclick="closeDiary()" class="secondaryBtn">✖ Close</button>
         </div>
     </div>
 
