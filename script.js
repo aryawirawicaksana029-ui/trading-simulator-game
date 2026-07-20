@@ -563,6 +563,15 @@ function nextLevel() {
 
 // ================= INIT =================
 document.getElementById("buyBtn").addEventListener("click", buy);
-document.getElementById("sellBtn").addEventListener("click", sell);
+document.getElementById("sellBtn").addEventListener("click", () => sell("MANUAL"));
+document.getElementById("aiSettingsBtn").addEventListener("click", openAISettings);
+
+loadAISettingsFromSession();
+updateAICoachStatusUI();
+if (aiCoachEnabled) {
+    setAICoachText(groqApiKey
+        ? "AI Coach is live. Make your move!"
+        : "⚠️ No API key set — using built-in fallback commentary instead of Groq.");
+}
 
 loadLevel(0);

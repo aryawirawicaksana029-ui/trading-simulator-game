@@ -1,16 +1,10 @@
 # 🎮 Trading Simulator Pro
 
-An educational trading simulator game built with vanilla JavaScript and [TradingView Lightweight Charts](https://github.com/tradingview/lightweight-charts). Designed with a **"Zero Jargon"** philosophy — teaching real trading concepts (support/resistance, trend, stop loss, market sentiment) through simple visuals that anyone can understand, even without any finance background
-
-🔗 Live demo: https://aryawirawicaksana029-ui.github.io/trading-simulator-game/
+An educational trading simulator game built with vanilla JavaScript and [TradingView Lightweight Charts](https://github.com/tradingview/lightweight-charts). Designed with a **"Zero Jargon"** philosophy — teaching real trading concepts (support/resistance, trend, stop loss, market sentiment) through simple visuals that anyone can understand, even without any finance background.
 
 ## 🌟 Why This Project
 
 Most trading education content is full of jargon (RSI, Fibonacci, Moving Average) that scares beginners away. This game strips that away and teaches the *intuition* behind trading through gameplay: color, shape, and simple language — while still simulating real market behavior patterns underneath.
-
-## 📸 Preview
-
-<img width="1188" height="1054" alt="image" src="https://github.com/user-attachments/assets/cae67098-4064-47c4-b075-a34c68262f4a" />
 
 ## 🕹️ Features
 
@@ -81,7 +75,7 @@ Built as part of a self-directed 53-day AI Engineering learning journey — comb
 
 ## 🔮 Future Plans
 
-- [ ] AI-powered commentary — integrate Groq API to give players real-time feedback on their decisions (e.g. "You bought right as the market hit Extreme Greed — risky!")
+- [x] AI-powered commentary — integrated Groq API (`⚙️ AI Coach` button in-game) to give players real-time feedback on their decisions (e.g. "You bought right as the market hit Extreme Greed — risky!"). Get a free key at [console.groq.com](https://console.groq.com), paste it into the AI Coach settings, and enable it. Without a key, the game still shows built-in fallback commentary so the feature always works. **Note:** since this is a static no-backend site, the key lives only in your browser tab (memory, or `sessionStorage` if you opt in) and is sent directly to Groq — don't hardcode your own key into the source before sharing/deploying this project; wire it through the planned Flask backend instead if you ever make this public.
 - [ ] Trading Diary / Replay — review past decisions after Game Over
 - [ ] Interactive Level 0 tutorial with live hints
 - [ ] Sound effects for profit/loss events
