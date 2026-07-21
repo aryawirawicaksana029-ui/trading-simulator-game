@@ -13,12 +13,17 @@ let slLine = null;
 let tpLine = null;
 
 // --- Market Mode State Machine ---
-let marketMode = "NEUTRAL";   // TREND_UP, TREND_DOWN, RANGING, NEUTRAL
+let marketMode = "NEUTRAL";   // TREND_UP, TREND_DOWN, RANGING, NEUTRAL, WHIPSAW, FAKE_BREAKOUT, FLASH_CRASH_RECOVERY
 let modeCounter = 0;
 let modeDuration = 15;
 let priceCeiling = 0;
 let priceFloor = 0;
 let crashCandlesLeft = 0;
+
+// --- Advanced Pattern State (Level 3+) ---
+let fakeBreakoutCandle = -1;      // which candle within the mode triggers the lure
+let fakeBreakoutDirection = null; // "UP" or "DOWN" — which way the lure broke, so the trap snaps back opposite
+let flashCrashCounter = 0;        // candle position within a FLASH_CRASH_RECOVERY mode
 
 // --- AI Coach State (Groq API) ---
 let groqApiKey = "";
@@ -35,8 +40,11 @@ let tutorialActive = false;
 let tutorialStep = 0;
 
 const levels = [
-    { name: "Level 1: Calm Market", target: 12000, volatility: 15, speed: 1000 },
-    { name: "Level 2: Stormy Market",  target: 16000, volatility: 40, speed: 600 },
+    { name: "Level 1: Calm Market", target: 12000, volatility: 15, speed: 1000, patternSet: [] },
+    { name: "Level 2: Stormy Market",  target: 16000, volatility: 40, speed: 600, patternSet: [] },
+    { name: "Level 3: Choppy Waters", target: 20000, volatility: 50, speed: 500, patternSet: ["WHIPSAW"] },
+    { name: "Level 4: Bull & Bear Traps", target: 25000, volatility: 60, speed: 450, patternSet: ["WHIPSAW", "FAKE_BREAKOUT"] },
+    { name: "Level 5: Black Swan", target: 32000, volatility: 75, speed: 350, patternSet: ["WHIPSAW", "FAKE_BREAKOUT", "FLASH_CRASH_RECOVERY"], crashChance: 0.18 },
 ];
 
 // ================= CHART SETUP =================
@@ -90,6 +98,50 @@ function generateNewCandle() {
         }
         updateModeUI("↔️ Floor & Ceiling");
     }
+    // PRIORITY 2b: Whipsaw - violent, directionless chop (Level 3+)
+    else if (marketMode === "WHIPSAW") {
+        change = (Math.random() - 0.5) * vol * 3;
+        updateModeUI("🌊 Whipsaw (Choppy)");
+    }
+    // PRIORITY 2c: Fake Breakout - a Floor & Ceiling that lures a breakout trade, then traps it (Level 4+)
+    else if (marketMode === "FAKE_BREAKOUT") {
+        let distToCeiling = priceCeiling - currentPrice;
+        let distToFloor = currentPrice - priceFloor;
+
+        if (modeCounter === fakeBreakoutCandle) {
+            // Lure: price punches decisively through a boundary
+            const breakUp = Math.random() > 0.5;
+            fakeBreakoutDirection = breakUp ? "UP" : "DOWN";
+            change = breakUp ? (vol * 1.8 + Math.random() * vol) : -(vol * 1.8 + Math.random() * vol);
+            updateModeUI("⚠️ Breakout?!");
+        } else if (modeCounter === fakeBreakoutCandle + 1 || modeCounter === fakeBreakoutCandle + 2) {
+            // Trap: snaps back hard the opposite way, punishing anyone who chased the lure
+            change = fakeBreakoutDirection === "UP"
+                ? -(vol * 2 + Math.random() * vol)
+                : (vol * 2 + Math.random() * vol);
+            updateModeUI("🪤 Fake Breakout Trap!");
+        } else if (distToCeiling < vol) {
+            change = -(Math.random() * vol);
+            updateModeUI("↔️ Floor & Ceiling");
+        } else if (distToFloor < vol) {
+            change = Math.random() * vol;
+            updateModeUI("↔️ Floor & Ceiling");
+        } else {
+            change = (Math.random() - 0.5) * vol;
+            updateModeUI("↔️ Floor & Ceiling");
+        }
+    }
+    // PRIORITY 2d: Flash Crash + V-Recovery - sharp drop, then a sharp bounce back (Level 5)
+    else if (marketMode === "FLASH_CRASH_RECOVERY") {
+        if (flashCrashCounter < 4) {
+            change = -(vol * 2.5 + Math.random() * vol);
+            updateModeUI("💥 Flash Crash!");
+        } else {
+            change = vol * 2 + Math.random() * vol;
+            updateModeUI("🚀 V-Recovery!");
+        }
+        flashCrashCounter += 1;
+    }
     // PRIORITY 3: Upward Trend
     else if (marketMode === "TREND_UP") {
         change = (Math.random() * vol) - (vol * 0.25);   // upward bias
@@ -131,7 +183,8 @@ function generateNewCandle() {
 function checkCrashTrigger() {
     let fg = calculateFearGreed();
     let longUptrend = marketMode === "TREND_UP" && modeCounter > 8;
-    if ((fg > 80 || longUptrend) && Math.random() < 0.10) {
+    const crashChance = levels[currentLevel].crashChance !== undefined ? levels[currentLevel].crashChance : 0.10;
+    if ((fg > 80 || longUptrend) && Math.random() < crashChance) {
         crashCandlesLeft = 3;
         return true;
     }
@@ -147,6 +200,24 @@ function decideNextMode() {
     let fg = calculateFearGreed();
     modeCounter = 0;
     modeDuration = 10 + Math.floor(Math.random() * 15); // 10-25 candles
+
+    // Levels 3+ can roll one of their advanced patterns instead of a basic mode
+    const patternSet = levels[currentLevel].patternSet || [];
+    if (patternSet.length > 0 && Math.random() < 0.35) {
+        const chosen = patternSet[Math.floor(Math.random() * patternSet.length)];
+        marketMode = chosen;
+
+        if (chosen === "FAKE_BREAKOUT") {
+            setRangingBounds();
+            fakeBreakoutCandle = 4 + Math.floor(Math.random() * (modeDuration - 6));
+            fakeBreakoutDirection = null;
+        } else if (chosen === "FLASH_CRASH_RECOVERY") {
+            modeDuration = 8; // short, self-contained V-shaped pattern
+            flashCrashCounter = 0;
+        }
+        // WHIPSAW needs no extra setup
+        return;
+    }
 
     if (fg > 70) {
         marketMode = "RANGING";
@@ -294,8 +365,8 @@ function fallbackFor(context) {
 
 function buildAIPrompt(context) {
     const fgIdx = context.fearGreed;
-    const fgWord = fgIdx !== undefined ? fgLabel(fgIdx).replace("_", " ") : "unknown";
-    const mode = marketMode.replace("_", " ").toLowerCase();
+    const fgWord = fgIdx !== undefined ? fgLabel(fgIdx).replace(/_/g, " ") : "unknown";
+    const mode = marketMode.replace(/_/g, " ").toLowerCase();
 
     switch (context.type) {
         case "BUY":
@@ -504,7 +575,7 @@ function renderTradingDiary() {
                     </span>
                 </div>
                 <div class="diaryMeta">
-                    Entry $${t.entryPrice.toFixed(2)} · ${fgWordLabel(t.entryFG)} · ${escapeHtml(t.entryMode.replace("_", " "))}
+                    Entry $${t.entryPrice.toFixed(2)} · ${fgWordLabel(t.entryFG)} · ${escapeHtml(t.entryMode.replace(/_/g, " "))}
                     ${isOpen ? "" : ` → Exit $${t.exitPrice.toFixed(2)} (${reasonLabel})`}
                 </div>
                 ${t.entryComment ? `<div class="diaryComment">🤖 On entry: "${escapeHtml(t.entryComment)}"</div>` : ""}
