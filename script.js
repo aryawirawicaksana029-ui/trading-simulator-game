@@ -436,6 +436,7 @@ function saveAISettings() {
     hideAllOverlays();
 
     if (aiCoachEnabled) {
+        unlockAchievement("ai_believer");
         setAICoachText(groqApiKey
             ? "AI Coach is live. Make your move!"
             : "⚠️ No API key set — using built-in fallback commentary instead of Groq.");
@@ -514,6 +515,7 @@ function renderTradingDiary() {
 }
 
 function openTradingDiary() {
+    unlockAchievement("diary_keeper");
     renderTradingDiary();
     showOverlay("tradingDiaryOverlay");
 }
@@ -669,6 +671,7 @@ function tutorialCheckAdvance() {
 }
 
 function finishTutorial() {
+    if (tutorialStep === TUTORIAL_STEPS.length - 1) unlockAchievement("graduate");
     tutorialActive = false;
     document.getElementById("tutorialTooltip").classList.remove("show");
     document.querySelectorAll(".tutorialHighlight").forEach(el => el.classList.remove("tutorialHighlight"));
@@ -743,6 +746,9 @@ function playSound(name) {
             case "gameOver": // low descending tone
                 playSequence([[220, 0, 0.2], [180, 0.18, 0.2], [140, 0.36, 0.4]], "sawtooth", 0.15);
                 break;
+            case "achievement": // bright 3-note sparkle, distinct from Take Profit's arpeggio
+                playSequence([[784, 0, 0.1], [988, 0.08, 0.1], [1175, 0.16, 0.3]], "triangle", 0.22);
+                break;
         }
     } catch (e) {
         console.warn("Sound playback failed:", e);
@@ -758,6 +764,82 @@ function toggleSound() {
 
 function updateSoundButtonUI() {
     document.getElementById("soundToggleBtn").innerText = soundEnabled ? "🔊 Sound" : "🔇 Sound";
+}
+
+// ================= ACHIEVEMENTS =================
+const ACHIEVEMENTS = [
+    { id: "first_trade", icon: "🥇", title: "First Trade", desc: "Complete your very first trade." },
+    { id: "seatbelt_streak", icon: "🎗️", title: "Always Buckled Up", desc: "Complete 10 trades — every one of them with a Seatbelt (Stop Loss) set." },
+    { id: "hot_streak", icon: "🔥", title: "Hot Streak", desc: "Win 3 trades in a row." },
+    { id: "seatbelt_saved", icon: "🛟", title: "Seatbelt Saved Me", desc: "Get stopped out by your own Stop Loss 5 times — and live to trade another day." },
+    { id: "sniper", icon: "🎯", title: "Sniper", desc: "Hit your Take Profit target 5 times." },
+    { id: "contrarian", icon: "💎", title: "Contrarian", desc: "Buy while the market is in Extreme Fear." },
+    { id: "rode_the_wave", icon: "🎢", title: "Rode the Wave", desc: "Buy during Extreme Greed and still close the trade in profit." },
+    { id: "level_clear_1", icon: "🎉", title: "Level 1 Cleared", desc: "Reach the target balance in Level 1: Calm Market." },
+    { id: "champion", icon: "🏆", title: "Trading Champion", desc: "Complete every level in the game." },
+    { id: "comeback_kid", icon: "🔄", title: "Comeback Kid", desc: "Bounce back from a Game Over and try again." },
+    { id: "ai_believer", icon: "🤖", title: "AI Believer", desc: "Turn on the AI Coach." },
+    { id: "diary_keeper", icon: "📔", title: "Diary Keeper", desc: "Open your Trading Diary for the first time." },
+    { id: "graduate", icon: "🎓", title: "Graduate", desc: "Complete the interactive tutorial." },
+    { id: "big_balance", icon: "💰", title: "Big Balance", desc: "Reach a $20,000 balance." }
+];
+
+let unlockedAchievements = new Set(JSON.parse(localStorage.getItem("unlockedAchievements") || "[]"));
+let winStreak = 0;
+let slCount = 0;
+let tpCount = 0;
+let cameFromGameOver = false;
+
+function unlockAchievement(id) {
+    if (unlockedAchievements.has(id)) return; // already unlocked, no-op
+    unlockedAchievements.add(id);
+    localStorage.setItem("unlockedAchievements", JSON.stringify([...unlockedAchievements]));
+    const badge = ACHIEVEMENTS.find(a => a.id === id);
+    if (badge) showAchievementToast(badge);
+    playSound("achievement");
+}
+
+function showAchievementToast(badge) {
+    const container = document.getElementById("achievementToasts");
+    const toast = document.createElement("div");
+    toast.className = "achievementToast";
+    toast.innerHTML = `
+        <div class="achievementToastIcon">${badge.icon}</div>
+        <div>
+            <div class="achievementToastLabel">ACHIEVEMENT UNLOCKED</div>
+            <div class="achievementToastTitle">${escapeHtml(badge.title)}</div>
+            <div class="achievementToastDesc">${escapeHtml(badge.desc)}</div>
+        </div>
+    `;
+    container.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("show"));
+    setTimeout(() => {
+        toast.classList.remove("show");
+        setTimeout(() => toast.remove(), 400);
+    }, 4200);
+}
+
+function renderAchievementsPanel() {
+    document.getElementById("achievementsCount").innerText =
+        `${unlockedAchievements.size} / ${ACHIEVEMENTS.length} unlocked`;
+
+    document.getElementById("achievementsList").innerHTML = ACHIEVEMENTS.map(a => {
+        const unlocked = unlockedAchievements.has(a.id);
+        return `
+            <div class="achievementRow ${unlocked ? "unlocked" : "locked"}">
+                <div class="achievementRowIcon">${unlocked ? a.icon : "🔒"}</div>
+                <div>
+                    <div class="achievementRowTitle">${escapeHtml(a.title)}</div>
+                    <div class="achievementRowDesc">${escapeHtml(a.desc)}</div>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+function openAchievements() {
+    renderAchievementsPanel();
+    showOverlay("achievementsOverlay");
 }
 
 // ================= TRADING ACTIONS =================
@@ -799,11 +881,12 @@ function buy() {
         `LONG @ $${entryPrice.toFixed(2)}`;
 
     const tradeId = tradeLog.length;
+    const entryFG = calculateFearGreed();
     tradeLog.push({
         id: tradeId,
         level: levels[currentLevel].name,
         entryPrice,
-        entryFG: calculateFearGreed(),
+        entryFG,
         entryMode: marketMode,
         slDist, tpDist,
         exitPrice: null, exitReason: null, profit: null, exitFG: null,
@@ -811,7 +894,9 @@ function buy() {
     });
     openTradeId = tradeId;
 
-    requestAICommentary({ type: "BUY", price: entryPrice, slDist, tpDist, fearGreed: calculateFearGreed(), tradeId });
+    if (entryFG <= 20) unlockAchievement("contrarian");
+
+    requestAICommentary({ type: "BUY", price: entryPrice, slDist, tpDist, fearGreed: entryFG, tradeId });
     playSound("buy");
     tutorialCheckAdvance();
 }
@@ -834,13 +919,14 @@ function sell(reason = "MANUAL") {
 
     const fg = calculateFearGreed();
     const closedTradeId = openTradeId;
+    let closedTrade = null;
     if (closedTradeId !== null) {
-        const trade = tradeLog.find(t => t.id === closedTradeId);
-        if (trade) {
-            trade.exitPrice = currentPrice;
-            trade.exitReason = reason;
-            trade.profit = profit;
-            trade.exitFG = fg;
+        closedTrade = tradeLog.find(t => t.id === closedTradeId);
+        if (closedTrade) {
+            closedTrade.exitPrice = currentPrice;
+            closedTrade.exitReason = reason;
+            closedTrade.profit = profit;
+            closedTrade.exitFG = fg;
         }
         openTradeId = null;
     }
@@ -852,6 +938,24 @@ function sell(reason = "MANUAL") {
     if (reason === "TP") playSound("tp");
     else if (reason === "SL") playSound("sl");
     else playSound(profit >= 0 ? "profit" : "loss");
+
+    // --- Achievement checks ---
+    const closedCount = tradeLog.filter(t => t.exitPrice !== null).length;
+    if (closedCount >= 1) unlockAchievement("first_trade");
+    if (closedCount >= 10) unlockAchievement("seatbelt_streak"); // Stop Loss is mandatory on every trade in this game
+
+    if (profit > 0) {
+        winStreak++;
+        if (winStreak >= 3) unlockAchievement("hot_streak");
+    } else {
+        winStreak = 0;
+    }
+
+    if (reason === "SL") { slCount++; if (slCount >= 5) unlockAchievement("seatbelt_saved"); }
+    if (reason === "TP") { tpCount++; if (tpCount >= 5) unlockAchievement("sniper"); }
+
+    if (closedTrade && closedTrade.entryFG >= 80 && profit > 0) unlockAchievement("rode_the_wave");
+    if (balance >= 20000) unlockAchievement("big_balance");
 
     tutorialCheckAdvance();
     checkWinLose();
@@ -895,11 +999,13 @@ function checkWinLose() {
     if (tutorialActive) return; // no bankruptcy/target checks while practicing in the tutorial
     if (balance <= 0) {
         clearInterval(gameInterval);
+        cameFromGameOver = true;
         requestAICommentary({ type: "GAME_OVER", balance });
         playSound("gameOver");
         showOverlay("gameOverOverlay");
     } else if (balance >= levels[currentLevel].target) {
         clearInterval(gameInterval);
+        if (currentLevel === 0) unlockAchievement("level_clear_1");
         requestAICommentary({ type: "LEVEL_CLEAR", balance, target: levels[currentLevel].target });
         playSound("levelClear");
         if (currentLevel + 1 < levels.length) {
@@ -907,6 +1013,7 @@ function checkWinLose() {
                 `Your balance of $${balance.toFixed(2)} has exceeded the target! Ready to proceed to ${levels[currentLevel+1].name}?`;
             showOverlay("levelClearOverlay");
         } else {
+            unlockAchievement("champion");
             showOverlay("gameWinOverlay");
         }
     }
@@ -921,6 +1028,10 @@ function hideAllOverlays() {
 
 function restartLevel() {
     hideAllOverlays();
+    if (cameFromGameOver) {
+        unlockAchievement("comeback_kid");
+        cameFromGameOver = false;
+    }
     balance = 10000;
     position = null;
     tradeLog = [];
@@ -942,6 +1053,7 @@ document.getElementById("aiSettingsBtn").addEventListener("click", openAISetting
 document.getElementById("diaryBtn").addEventListener("click", openTradingDiary);
 document.getElementById("tutorialBtn").addEventListener("click", startTutorial);
 document.getElementById("soundToggleBtn").addEventListener("click", toggleSound);
+document.getElementById("achievementsBtn").addEventListener("click", openAchievements);
 
 updateSoundButtonUI();
 loadAISettingsFromSession();

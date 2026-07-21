@@ -54,6 +54,7 @@
         <button id="diaryBtn">📔 Diary</button>
         <button id="tutorialBtn">🎓 Tutorial</button>
         <button id="soundToggleBtn">🔊 Sound</button>
+        <button id="achievementsBtn">🏅 Achievements</button>
     </div>
 
     <!-- ===== OVERLAYS ===== -->
@@ -122,9 +123,21 @@
         </div>
     </div>
 
+    <div class="overlay" id="achievementsOverlay">
+        <div id="achievementsContent">
+            <h2>🏅 Achievements</h2>
+            <div id="achievementsCount"></div>
+            <div id="achievementsList"></div>
+            <button onclick="hideAllOverlays()" class="secondaryBtn">✖ Close</button>
+        </div>
+    </div>
+
     <!-- Floating tutorial hint box (Level 0). Not a full-screen overlay so the
          player can still click the highlighted BUY/SELL button underneath. -->
     <div id="tutorialTooltip"></div>
+
+    <!-- Achievement unlock toasts stack here, top-right, independent of any overlay -->
+    <div id="achievementToasts"></div>
 
     <script src="script.js"></script>
 </body>
