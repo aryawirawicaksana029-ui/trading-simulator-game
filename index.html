@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Trading Simulator Pro</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <link rel="stylesheet" href="style.css">
@@ -32,7 +33,7 @@
     </div>
 
     <div id="sentimentBar">
-        <p>😨 FEAR &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; GREED 🤑</p>
+        <div id="sentimentLabels"><span>😨 FEAR</span><span>GREED 🤑</span></div>
         <div id="sentimentTrack">
             <div id="sentimentFill"></div>
             <div id="sentimentMarker"></div>

@@ -51,8 +51,16 @@ h1 {
 
 /* --- Sentiment Bar --- */
 #sentimentBar {
-    width: 320px;
+    width: 100%;
+    max-width: 320px;
     margin: 0 auto 20px;
+}
+#sentimentLabels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #9a9ab0;
+    margin: 2px 0;
 }
 #sentimentBar p { font-size: 13px; margin: 2px 0; color: #9a9ab0; }
 #sentimentTrack {
@@ -80,8 +88,8 @@ h1 {
 
 /* --- Chart --- */
 #chartContainer {
-    width: 720px;
-    height: 380px;
+    width: 100%;
+    max-width: 720px;
     margin: 0 auto;
     border-radius: 10px;
     overflow: hidden;
@@ -134,7 +142,14 @@ h1 {
 }
 
 /* --- Controls --- */
-#controls { margin-top: 20px; }
+#controls {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+#controls button { margin: 0; }
 button {
     border: none;
     border-radius: 8px;
@@ -142,7 +157,7 @@ button {
     font-size: 16px;
     font-weight: bold;
     cursor: pointer;
-    margin: 0 8px;
+    margin: 6px 4px;
     transition: transform 0.15s ease;
 }
 button:hover { transform: scale(1.05); }
@@ -375,6 +390,8 @@ button:hover { transform: scale(1.05); }
 .diaryEntryHead {
     display: flex;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px;
     font-weight: bold;
     margin-bottom: 4px;
 }
@@ -418,7 +435,7 @@ button:hover { transform: scale(1.05); }
     margin-top: 10px !important;
 }
 .checkboxLabel input { width: 16px; height: 16px; }
-.overlayBtnRow { display: flex; gap: 10px; }
+.overlayBtnRow { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .secondaryBtn { background: #2a2a4a !important; color: #eaeaea !important; }
 #aiSettingsOverlay p { max-width: 380px; font-size: 14px; }
 #aiSettingsOverlay a { color: #00b4d8; }
@@ -440,4 +457,35 @@ button:hover { transform: scale(1.05); }
 .overlay button {
     background: #00b4d8;
     color: #0d0d1a;
+}
+
+/* --- Mobile responsive layout --- */
+@media (max-width: 600px) {
+    body { padding: 12px; }
+    h1 { font-size: 21px; }
+    #levelInfo, #modeInfo { font-size: 13px; }
+
+    .overlay { padding: 16px; }
+    .overlay h2 { font-size: 23px; }
+    .overlay p { font-size: 14px; }
+    .overlay { justify-content: flex-start; padding-top: 60px; overflow-y: auto; }
+
+    #infoRow { gap: 10px; }
+    .card { min-width: 95px; padding: 8px 12px; }
+    .card p { font-size: 11px; }
+    .card h3 { font-size: 16px; }
+
+    #controls { gap: 8px; }
+    #controls button { padding: 11px 14px; font-size: 12.5px; }
+
+    #diaryContent, #achievementsContent { padding: 16px; }
+    #tutorialTooltip { padding: 12px; }
+
+    #achievementToasts { top: 10px; right: 10px; left: 10px; align-items: stretch; }
+    .achievementToast { width: auto; }
+}
+
+@media (max-width: 360px) {
+    #controls button { padding: 9px 10px; font-size: 11px; }
+    h1 { font-size: 19px; }
 }

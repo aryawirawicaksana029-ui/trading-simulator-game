@@ -48,9 +48,15 @@ const levels = [
 ];
 
 // ================= CHART SETUP =================
-const chart = LightweightCharts.createChart(document.getElementById('chartContainer'), {
-    width: 720,
-    height: 380,
+const chartContainerEl = document.getElementById('chartContainer');
+
+function getChartHeight() {
+    return window.innerWidth <= 480 ? 260 : 380;
+}
+
+const chart = LightweightCharts.createChart(chartContainerEl, {
+    width: chartContainerEl.clientWidth,
+    height: getChartHeight(),
     layout: {
         background: { color: '#16213e' },
         textColor: '#eaeaea',
@@ -71,6 +77,16 @@ const candleSeries = chart.addCandlestickSeries({
     borderVisible: false,
     wickUpColor: '#00b4d8',
     wickDownColor: '#ff4d6d',
+});
+
+// Keep the chart's pixel size in sync with its container across orientation
+// changes / window resizes (debounced so it doesn't fire on every pixel).
+let chartResizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(chartResizeTimeout);
+    chartResizeTimeout = setTimeout(() => {
+        chart.resize(chartContainerEl.clientWidth, getChartHeight());
+    }, 150);
 });
 
 // ================= CORE MARKET LOGIC =================
