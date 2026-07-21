@@ -679,6 +679,87 @@ function skipTutorial() {
     finishTutorial();
 }
 
+// ================= SOUND EFFECTS =================
+// Synthesized with the Web Audio API — no external audio files needed, so it
+// works offline and doesn't add any assets to the project.
+let soundEnabled = localStorage.getItem("soundEnabled") !== "false"; // default ON
+let audioCtx = null;
+
+function getAudioCtx() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // Browsers suspend AudioContext until a real user gesture; resume defensively.
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+}
+
+// Plays one tone with a short volume envelope so it doesn't click at the edges.
+function playTone(freq, startOffset, duration, type = "sine", peakVolume = 0.2) {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const t0 = ctx.currentTime + startOffset;
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(peakVolume, t0 + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
+
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.02);
+}
+
+// notes: array of [frequency, startOffset, duration]
+function playSequence(notes, type, peakVolume) {
+    notes.forEach(([freq, start, dur]) => playTone(freq, start, dur, type, peakVolume));
+}
+
+function playSound(name) {
+    if (!soundEnabled) return;
+    try {
+        switch (name) {
+            case "buy": // short, subtle click when a position opens
+                playTone(520, 0, 0.09, "triangle", 0.12);
+                break;
+            case "profit": // bright ascending two-note chime, manual close in the green
+                playSequence([[660, 0, 0.14], [880, 0.1, 0.18]], "sine", 0.18);
+                break;
+            case "loss": // soft descending dip, manual close in the red — not harsh
+                playSequence([[300, 0, 0.16], [220, 0.12, 0.22]], "sine", 0.16);
+                break;
+            case "tp": // celebratory 3-note ascending arpeggio — Take Profit Seatbelt
+                playSequence([[523, 0, 0.12], [659, 0.1, 0.12], [784, 0.2, 0.25]], "triangle", 0.2);
+                break;
+            case "sl": // duller two-note thud — Stop Loss Seatbelt (a save, not a failure)
+                playSequence([[196, 0, 0.15], [164, 0.1, 0.28]], "sawtooth", 0.14);
+                break;
+            case "levelClear": // 4-note fanfare
+                playSequence([[523, 0, 0.12], [659, 0.1, 0.12], [784, 0.2, 0.12], [1047, 0.3, 0.3]], "triangle", 0.2);
+                break;
+            case "gameOver": // low descending tone
+                playSequence([[220, 0, 0.2], [180, 0.18, 0.2], [140, 0.36, 0.4]], "sawtooth", 0.15);
+                break;
+        }
+    } catch (e) {
+        console.warn("Sound playback failed:", e);
+    }
+}
+
+function toggleSound() {
+    soundEnabled = !soundEnabled;
+    localStorage.setItem("soundEnabled", soundEnabled ? "true" : "false");
+    updateSoundButtonUI();
+    if (soundEnabled) playSound("buy"); // quick audible confirmation it's back on
+}
+
+function updateSoundButtonUI() {
+    document.getElementById("soundToggleBtn").innerText = soundEnabled ? "🔊 Sound" : "🔇 Sound";
+}
+
 // ================= TRADING ACTIONS =================
 function buy() {
     if (position !== null) {
@@ -731,6 +812,7 @@ function buy() {
     openTradeId = tradeId;
 
     requestAICommentary({ type: "BUY", price: entryPrice, slDist, tpDist, fearGreed: calculateFearGreed(), tradeId });
+    playSound("buy");
     tutorialCheckAdvance();
 }
 
@@ -766,6 +848,10 @@ function sell(reason = "MANUAL") {
     if (reason === "MANUAL") requestAICommentary({ type: "SELL_MANUAL", profit, fearGreed: fg, tradeId: closedTradeId });
     else if (reason === "TP") requestAICommentary({ type: "SELL_TP", profit, fearGreed: fg, tradeId: closedTradeId });
     else if (reason === "SL") requestAICommentary({ type: "SELL_SL", profit, fearGreed: fg, tradeId: closedTradeId });
+
+    if (reason === "TP") playSound("tp");
+    else if (reason === "SL") playSound("sl");
+    else playSound(profit >= 0 ? "profit" : "loss");
 
     tutorialCheckAdvance();
     checkWinLose();
@@ -810,10 +896,12 @@ function checkWinLose() {
     if (balance <= 0) {
         clearInterval(gameInterval);
         requestAICommentary({ type: "GAME_OVER", balance });
+        playSound("gameOver");
         showOverlay("gameOverOverlay");
     } else if (balance >= levels[currentLevel].target) {
         clearInterval(gameInterval);
         requestAICommentary({ type: "LEVEL_CLEAR", balance, target: levels[currentLevel].target });
+        playSound("levelClear");
         if (currentLevel + 1 < levels.length) {
             document.getElementById('levelClearMsg').innerText =
                 `Your balance of $${balance.toFixed(2)} has exceeded the target! Ready to proceed to ${levels[currentLevel+1].name}?`;
@@ -853,7 +941,9 @@ document.getElementById("sellBtn").addEventListener("click", () => sell("MANUAL"
 document.getElementById("aiSettingsBtn").addEventListener("click", openAISettings);
 document.getElementById("diaryBtn").addEventListener("click", openTradingDiary);
 document.getElementById("tutorialBtn").addEventListener("click", startTutorial);
+document.getElementById("soundToggleBtn").addEventListener("click", toggleSound);
 
+updateSoundButtonUI();
 loadAISettingsFromSession();
 updateAICoachStatusUI();
 if (aiCoachEnabled) {
