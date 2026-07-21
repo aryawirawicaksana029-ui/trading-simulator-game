@@ -160,6 +160,77 @@ button:hover { transform: scale(1.05); }
     font-size: 14px;
     padding: 14px 20px;
 }
+#tutorialBtn {
+    background: #2a2a4a;
+    color: #eaeaea;
+    font-size: 14px;
+    padding: 14px 20px;
+}
+
+/* --- Interactive Tutorial (Level 0) --- */
+.tutorialHighlight {
+    position: relative;
+    outline: 3px solid #ffd60a;
+    outline-offset: 3px;
+    border-radius: 10px;
+    animation: tutorialPulse 1.4s ease-in-out infinite;
+    z-index: 150;
+}
+@keyframes tutorialPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 214, 10, 0.5); }
+    50% { box-shadow: 0 0 0 10px rgba(255, 214, 10, 0); }
+}
+#tutorialTooltip {
+    display: none;
+    position: fixed;
+    z-index: 300;
+    width: 300px;
+    max-width: 88vw;
+    background: #16213e;
+    border: 1px solid #ffd60a;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: left;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+#tutorialTooltip.show { display: block; }
+.tutorialCounter {
+    font-size: 11px;
+    color: #ffd60a;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+.tutorialText {
+    font-size: 14px;
+    color: #eaeaea;
+    line-height: 1.45;
+    margin: 0 0 12px;
+}
+.tutorialActionHint {
+    font-size: 13px;
+    color: #ffd60a;
+    font-weight: bold;
+    margin: 0 0 10px;
+}
+#tutorialTooltip button {
+    padding: 8px 16px;
+    font-size: 13px;
+    margin: 0;
+}
+.tutorialSkip {
+    display: block;
+    background: none !important;
+    color: #9a9ab0 !important;
+    font-size: 12px !important;
+    font-weight: normal !important;
+    text-decoration: underline;
+    padding: 6px 0 0 !important;
+    margin-top: 8px !important;
+    cursor: pointer;
+}
+.tutorialSkip:hover { transform: none; color: #eaeaea !important; }
+#welcomeOverlay p { max-width: 420px; font-size: 15px; }
 
 /* --- Trading Diary --- */
 #tradingDiaryOverlay {

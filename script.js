@@ -30,6 +30,10 @@ let aiRequestInFlight = false;
 let tradeLog = [];        // full history of trades this run: entry + exit details + AI commentary
 let openTradeId = null;   // id of the currently open trade in tradeLog, or null
 
+// --- Interactive Tutorial State (Level 0) ---
+let tutorialActive = false;
+let tutorialStep = 0;
+
 const levels = [
     { name: "Level 1: Calm Market", target: 12000, volatility: 15, speed: 1000 },
     { name: "Level 2: Stormy Market",  target: 16000, volatility: 40, speed: 600 },
@@ -518,6 +522,163 @@ function closeDiary() {
     document.getElementById("tradingDiaryOverlay").classList.remove("show");
 }
 
+// ================= INTERACTIVE TUTORIAL (Level 0) =================
+// Each step highlights a real UI element and shows a floating hint box near it.
+// gate: 'button' = player just reads and clicks Next.
+// gate: 'action' = player must actually perform the action; `check()` is polled
+//                  after every buy()/sell() to see if the step is complete.
+// gate: 'finish' = last step, hands off into a real Level 1 run.
+const TUTORIAL_STEPS = [
+    {
+        target: null,
+        gate: "button",
+        text: "Welcome to Trading Simulator Pro! 👋 This quick walkthrough teaches you the basics in under a minute — no experience needed."
+    },
+    {
+        target: "#chartContainer",
+        gate: "button",
+        text: "This is the live market. Green candles mean price went up, red means it went down — watch it move in real time."
+    },
+    {
+        target: "#sentimentBar",
+        gate: "button",
+        text: "This is the Fear &amp; Greed meter. When it swings to Greed 🤑, everyone's excited — often right before a drop. When it swings to Fear 😨, everyone's scared — sometimes right before a bounce."
+    },
+    {
+        target: "#infoRow",
+        gate: "button",
+        text: "Here's your Balance, the current Price, and your open Position at a glance."
+    },
+    {
+        target: "#buyBtn",
+        gate: "action",
+        actionHint: "Click BUY, then set a Stop Loss / Take Profit distance to open your first position.",
+        check: () => position === "LONG",
+        text: "Time to trade! Click BUY below — you'll be asked to set your Seatbelt (a Stop Loss and Take Profit distance) before the trade opens."
+    },
+    {
+        target: "#chartContainer",
+        gate: "button",
+        text: "See the dashed red and green lines? That's your Seatbelt. Price hits red → the trade closes automatically at a loss. Price hits green → it closes automatically at a profit."
+    },
+    {
+        target: "#sellBtn",
+        gate: "action",
+        actionHint: "Click SELL to close manually, or just wait — your Seatbelt will do it for you.",
+        check: () => position === null && tradeLog.length > 0 && tradeLog[tradeLog.length - 1].exitPrice !== null,
+        text: "You can close anytime with SELL — or let your Seatbelt handle it. Try either one now."
+    },
+    {
+        target: "#aiSettingsBtn",
+        gate: "button",
+        text: "This is your AI Coach 🤖. Turn it on and add a free Groq API key to get real-time feedback on every trade you make."
+    },
+    {
+        target: "#diaryBtn",
+        gate: "button",
+        text: "Every trade — win or lose — gets saved in your 📔 Trading Diary, so you can review your decisions later."
+    },
+    {
+        target: null,
+        gate: "finish",
+        text: "You're ready! 🎉 This was practice — no real risk was involved. Tap below to start Level 1 for real, and remember: always wear your Seatbelt."
+    }
+];
+
+function startTutorial() {
+    hideAllOverlays();
+    tutorialActive = true;
+    document.getElementById("levelText").innerText = "Level 0: Tutorial";
+    document.getElementById("targetText").innerText = "—";
+    showTutorialStep(0);
+}
+
+function showTutorialStep(index) {
+    tutorialStep = index;
+    const step = TUTORIAL_STEPS[index];
+
+    document.querySelectorAll(".tutorialHighlight").forEach(el => el.classList.remove("tutorialHighlight"));
+
+    const tooltip = document.getElementById("tutorialTooltip");
+    tooltip.innerHTML = buildTutorialTooltipHTML(step, index);
+    tooltip.classList.add("show");
+
+    if (step.target) {
+        const targetEl = document.querySelector(step.target);
+        if (targetEl) {
+            targetEl.classList.add("tutorialHighlight");
+            positionTooltipNear(targetEl);
+            return;
+        }
+    }
+    positionTooltipCenter();
+}
+
+function buildTutorialTooltipHTML(step, index) {
+    const counter = `Step ${index + 1} of ${TUTORIAL_STEPS.length}`;
+    let actionHtml = "";
+    if (step.gate === "button") {
+        actionHtml = `<button onclick="tutorialNext()">Next →</button>`;
+    } else if (step.gate === "action") {
+        actionHtml = `<p class="tutorialActionHint">👉 ${step.actionHint}</p>`;
+    } else if (step.gate === "finish") {
+        actionHtml = `<button onclick="finishTutorial()">🚀 Finish Tutorial &amp; Start Level 1</button>`;
+    }
+    return `
+        <div class="tutorialCounter">${counter}</div>
+        <p class="tutorialText">${step.text}</p>
+        ${actionHtml}
+        <button class="tutorialSkip" onclick="skipTutorial()">Skip Tutorial</button>
+    `;
+}
+
+function positionTooltipNear(targetEl) {
+    const tooltip = document.getElementById("tutorialTooltip");
+    const rect = targetEl.getBoundingClientRect();
+    const tooltipWidth = tooltip.offsetWidth || 300;
+
+    let placeAbove = rect.bottom + 180 > window.innerHeight;
+    let top = placeAbove ? rect.top + window.scrollY - 12 : rect.bottom + window.scrollY + 12;
+    let left = rect.left + window.scrollX + (rect.width / 2) - (tooltipWidth / 2);
+    left = Math.max(10, Math.min(left, window.innerWidth - tooltipWidth - 10));
+
+    tooltip.style.top = `${top}px`;
+    tooltip.style.left = `${left}px`;
+    tooltip.style.transform = placeAbove ? "translateY(-100%)" : "none";
+}
+
+function positionTooltipCenter() {
+    const tooltip = document.getElementById("tutorialTooltip");
+    tooltip.style.top = "50%";
+    tooltip.style.left = "50%";
+    tooltip.style.transform = "translate(-50%, -50%)";
+}
+
+function tutorialNext() {
+    if (tutorialStep + 1 < TUTORIAL_STEPS.length) {
+        showTutorialStep(tutorialStep + 1);
+    }
+}
+
+function tutorialCheckAdvance() {
+    if (!tutorialActive) return;
+    const step = TUTORIAL_STEPS[tutorialStep];
+    if (step.gate === "action" && typeof step.check === "function" && step.check()) {
+        tutorialNext();
+    }
+}
+
+function finishTutorial() {
+    tutorialActive = false;
+    document.getElementById("tutorialTooltip").classList.remove("show");
+    document.querySelectorAll(".tutorialHighlight").forEach(el => el.classList.remove("tutorialHighlight"));
+    restartLevel(); // clean slate: real balance, empty diary, Level 1 for real
+}
+
+function skipTutorial() {
+    finishTutorial();
+}
+
 // ================= TRADING ACTIONS =================
 function buy() {
     if (position !== null) {
@@ -570,6 +731,7 @@ function buy() {
     openTradeId = tradeId;
 
     requestAICommentary({ type: "BUY", price: entryPrice, slDist, tpDist, fearGreed: calculateFearGreed(), tradeId });
+    tutorialCheckAdvance();
 }
 
 function sell(reason = "MANUAL") {
@@ -605,6 +767,7 @@ function sell(reason = "MANUAL") {
     else if (reason === "TP") requestAICommentary({ type: "SELL_TP", profit, fearGreed: fg, tradeId: closedTradeId });
     else if (reason === "SL") requestAICommentary({ type: "SELL_SL", profit, fearGreed: fg, tradeId: closedTradeId });
 
+    tutorialCheckAdvance();
     checkWinLose();
 }
 
@@ -643,6 +806,7 @@ function loadLevel(levelIndex) {
 }
 
 function checkWinLose() {
+    if (tutorialActive) return; // no bankruptcy/target checks while practicing in the tutorial
     if (balance <= 0) {
         clearInterval(gameInterval);
         requestAICommentary({ type: "GAME_OVER", balance });
@@ -688,6 +852,7 @@ document.getElementById("buyBtn").addEventListener("click", buy);
 document.getElementById("sellBtn").addEventListener("click", () => sell("MANUAL"));
 document.getElementById("aiSettingsBtn").addEventListener("click", openAISettings);
 document.getElementById("diaryBtn").addEventListener("click", openTradingDiary);
+document.getElementById("tutorialBtn").addEventListener("click", startTutorial);
 
 loadAISettingsFromSession();
 updateAICoachStatusUI();
@@ -698,3 +863,4 @@ if (aiCoachEnabled) {
 }
 
 loadLevel(0);
+showOverlay("welcomeOverlay");

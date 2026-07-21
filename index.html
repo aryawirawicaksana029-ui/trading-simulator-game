@@ -52,9 +52,17 @@
         <button id="sellBtn">🔴 SELL</button>
         <button id="aiSettingsBtn">⚙️ AI Coach</button>
         <button id="diaryBtn">📔 Diary</button>
+        <button id="tutorialBtn">🎓 Tutorial</button>
     </div>
 
     <!-- ===== OVERLAYS ===== -->
+    <div class="overlay" id="welcomeOverlay">
+        <h2>🎮 Welcome to Trading Simulator Pro!</h2>
+        <p>New here? Try the interactive tutorial to learn the Chart, the Fear &amp; Greed meter, and your Seatbelt (Stop Loss / Take Profit) before playing for real — takes under a minute.</p>
+        <button onclick="startTutorial()">🎓 Start Interactive Tutorial</button>
+        <button onclick="hideAllOverlays()" class="secondaryBtn">▶️ Skip to Level 1</button>
+    </div>
+
     <div class="overlay" id="gameOverOverlay">
         <h2>💀 GAME OVER</h2>
         <p>Oops, you went bankrupt because you forgot to set a proper seatbelt (Stop Loss).<br>Let's try again!</p>
@@ -112,6 +120,10 @@
             <button onclick="closeDiary()" class="secondaryBtn">✖ Close</button>
         </div>
     </div>
+
+    <!-- Floating tutorial hint box (Level 0). Not a full-screen overlay so the
+         player can still click the highlighted BUY/SELL button underneath. -->
+    <div id="tutorialTooltip"></div>
 
     <script src="script.js"></script>
 </body>
