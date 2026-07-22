@@ -56,6 +56,7 @@
         <button id="tutorialBtn">🎓 Tutorial</button>
         <button id="soundToggleBtn">🔊 Sound</button>
         <button id="achievementsBtn">🏅 Achievements</button>
+        <button id="leaderboardBtn">🏆 Leaderboard</button>
     </div>
 
     <!-- ===== OVERLAYS ===== -->
@@ -69,6 +70,11 @@
     <div class="overlay" id="gameOverOverlay">
         <h2>💀 GAME OVER</h2>
         <p>Oops, you went bankrupt because you forgot to set a proper seatbelt (Stop Loss).<br>Let's try again!</p>
+        <div class="leaderboardSubmit">
+            <input type="text" id="leaderboardNameGO" placeholder="Your name" maxlength="20">
+            <button onclick="submitGameOverScore()">🏆 Submit Best Balance</button>
+            <p id="leaderboardFeedbackGO" class="leaderboardFeedback"></p>
+        </div>
         <button onclick="restartLevel()">🔄 Try Again</button>
         <button onclick="openTradingDiary()" class="secondaryBtn">📔 View Trading Diary</button>
     </div>
@@ -83,6 +89,11 @@
     <div class="overlay" id="gameWinOverlay">
         <h2>🏆 YOU WIN!</h2>
         <p>All levels completed. You now understand the basics of trading money management!</p>
+        <div class="leaderboardSubmit">
+            <input type="text" id="leaderboardNameWin" placeholder="Your name" maxlength="20">
+            <button onclick="submitWinScore()">🏆 Submit Score</button>
+            <p id="leaderboardFeedbackWin" class="leaderboardFeedback"></p>
+        </div>
         <button onclick="restartLevel()">🔄 Play Again</button>
         <button onclick="openTradingDiary()" class="secondaryBtn">📔 View Trading Diary</button>
     </div>
@@ -129,6 +140,14 @@
             <h2>🏅 Achievements</h2>
             <div id="achievementsCount"></div>
             <div id="achievementsList"></div>
+            <button onclick="hideAllOverlays()" class="secondaryBtn">✖ Close</button>
+        </div>
+    </div>
+
+    <div class="overlay" id="leaderboardOverlay">
+        <div id="leaderboardContent">
+            <h2>🏆 Leaderboard</h2>
+            <div id="leaderboardList"></div>
             <button onclick="hideAllOverlays()" class="secondaryBtn">✖ Close</button>
         </div>
     </div>

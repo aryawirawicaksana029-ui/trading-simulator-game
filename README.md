@@ -18,6 +18,7 @@ Most trading education content is full of jargon (RSI, Fibonacci, Moving Average
 - **Risk Management Mechanic** — every BUY requires setting a Stop Loss and Take Profit distance; positions close automatically when price hits either level (drawn directly on the chart)
 - **Level Progression** — each level increases volatility and candle speed, raising the difficulty and testing emotional discipline under pressure
 - **Win/Lose States** — Game Over screen on bankruptcy, Level Clear screen on reaching the profit target
+- **Persistent Leaderboard** *(optional, needs the Flask backend)* — submit your best run and see how you rank against other players
 
 ## 🧠 The "Zero Jargon" Design Philosophy
 
@@ -35,25 +36,51 @@ Most trading education content is full of jargon (RSI, Fibonacci, Moving Average
 - **CSS3** — dark-themed, card-based UI
 - **Vanilla JavaScript** — game state, market simulation logic, DOM manipulation
 - **[TradingView Lightweight Charts](https://tradingview.github.io/lightweight-charts/)** — professional-grade candlestick rendering (via CDN, no build step needed)
+- **Flask + SQLite** *(optional)* — a tiny backend that persists the Leaderboard across sessions and players. Fully optional: every other feature works with zero backend, as a plain static site.
 
 ## 📁 Project Structure
 
 ```
 trading-simulator-game/
-├── index.html      # Page structure & markup
-├── style.css       # All styling (dark theme, cards, overlays)
-├── script.js       # Game state, market engine, trading logic
+├── index.html          # Page structure & markup
+├── style.css           # All styling (dark theme, cards, overlays)
+├── script.js           # Game state, market engine, trading logic
+├── app.py              # Optional Flask backend (serves the game + the Leaderboard API)
+├── requirements.txt    # Python dependency for app.py (just Flask)
+├── leaderboard.db       # Created automatically the first time app.py runs (SQLite) — not checked in
 └── README.md
 ```
 
 ## 🚀 How to Run
 
-No installation needed — it's a static site.
+### Option A — Just the game (no installation needed)
+
+It's a static site — every feature works this way except the persistent Leaderboard.
 
 1. Clone this repository
 2. Open `index.html` in any modern browser
 3. Click **BUY** to enter a position — you'll be asked to set a Stop Loss and Take Profit distance
 4. Watch the market move and manage your risk!
+
+### Option B — Game + persistent Leaderboard (Flask backend)
+
+Adds a **🏆 Leaderboard** you and friends can submit high scores to, saved in a local SQLite database that survives restarts.
+
+1. (Recommended) create a virtual environment: `python -m venv venv && source venv/bin/activate` (Windows: `venv\Scripts\activate`)
+2. Install the one dependency: `pip install -r requirements.txt`
+3. Run the server: `python app.py`
+4. Open **http://127.0.0.1:5000** in your browser (not `index.html` directly this time — the server serves it for you)
+
+That's it — `leaderboard.db` is created automatically on first run. If you ever open `index.html` directly instead of going through the server, the game still works completely normally; the **🏆 Leaderboard** button just shows a friendly "server not detected" message instead of breaking anything.
+
+**API reference**, if you want to build your own frontend against it or just poke it with `curl`:
+
+| Method | Endpoint | Body | Notes |
+|---|---|---|---|
+| `GET` | `/api/leaderboard` | — | Returns the top 20 scores as JSON, sorted highest balance first |
+| `POST` | `/api/leaderboard` | `{ "name": "...", "balance": 12345.67, "level": "...", "outcome": "cleared" \| "bankrupt" \| "champion" }` | Adds one entry. `name` is trimmed to 20 characters; `balance` must be a finite number between 0 and 10,000,000 |
+
+⚠️ **Trust note:** this is a hobby-project leaderboard, not an anti-cheat system — anyone who can reach the API can `POST` a fake score directly (no login, no signature). The server only does basic sanity-checking on the data shape, not verification that a score was actually earned in-game. Fine for friends comparing runs; not something to expose publicly as a competitive leaderboard without adding real auth.
 
 ## 🎯 How the Market Engine Works
 
@@ -82,4 +109,4 @@ Built as part of a self-directed 53-day AI Engineering learning journey — comb
 - [x] Achievement/badge system (e.g. "Always uses Stop Loss") — 14 badges across milestones (First Trade, Level 1 Cleared, Trading Champion), risk-discipline (Always Buckled Up, Seatbelt Saved Me, Sniper), boldness (Contrarian, Rode the Wave), streaks (Hot Streak), resilience (Comeback Kid), and feature exploration (AI Believer, Diary Keeper, Graduate, Big Balance). Unlocks show a toast notification + a chime, and progress is saved across visits. Click **🏅 Achievements** anytime to see the full list, locked and unlocked.
 - [x] Additional levels with more complex pattern combinations — 3 new levels (Level 3: Choppy Waters, Level 4: Bull & Bear Traps, Level 5: Black Swan) on top of the original two, each unlocking new market patterns that layer on top of the existing Trend/Floor & Ceiling/Crash engine: **🌊 Whipsaw** (violent, directionless chop), **🪤 Fake Breakout** (price fakes a breakout past the Ceiling/Floor to lure a trade, then snaps back hard the other way), and **💥🚀 Flash Crash + V-Recovery** (a sharp crash immediately followed by a sharp bounce). Level 5 also has a higher spontaneous-crash chance for extra chaos. Verified with a 15,000-candle simulation across all 5 levels with no numerical issues.
 - [x] Mobile-responsive layout — proper viewport meta tag, the chart resizes to fit its container (and re-fits on orientation change/window resize), the Fear & Greed label row no longer relies on a fixed-width `&nbsp;` hack, the button row wraps cleanly with a flexbox, and all overlays/panels (Diary, Achievements, AI Settings, Tutorial tooltip, achievement toasts) reflow properly down to ~320px-wide screens. Verified with real headless-browser screenshots at 320px, 375px, 768px, and 1024px.
-- [ ] Backend (Flask) integration for persistent leaderboards
+- [x] Backend (Flask) integration for persistent leaderboards — a small optional Flask + SQLite server (`app.py`) that serves the whole game and adds a `/api/leaderboard` REST API. Submit your **peak balance** on Game Over or your final balance on winning, then browse the **🏆 Leaderboard** panel to see the top 20 runs. Fully backward-compatible: the frontend probes for the backend on load and gracefully disables the Leaderboard UI (with a helpful message) if it isn't running — every other feature keeps working as a plain static site either way. Tested end-to-end with a real headless browser, including score submission, input validation, and the no-backend fallback path.

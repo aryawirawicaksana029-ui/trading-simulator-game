@@ -193,6 +193,81 @@ button:hover { transform: scale(1.05); }
     font-size: 14px;
     padding: 14px 20px;
 }
+#leaderboardBtn {
+    background: #2a2a4a;
+    color: #eaeaea;
+    font-size: 14px;
+    padding: 14px 20px;
+}
+
+/* --- Leaderboard score submission (Game Over / Win overlays) --- */
+.leaderboardSubmit {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    margin: 4px 0 18px;
+    width: 260px;
+    max-width: 85vw;
+}
+.leaderboardSubmit input {
+    width: 100%;
+    background: #0d0d1a;
+    border: 1px solid #2a2a4a;
+    color: #eaeaea;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 14px;
+    text-align: center;
+}
+.leaderboardFeedback { font-size: 12px; margin: 2px 0 0; min-height: 14px; }
+.leaderboardFeedback.success { color: #00e0a1; }
+.leaderboardFeedback.error { color: #ff4d6d; }
+
+/* --- Leaderboard panel --- */
+#leaderboardOverlay {
+    z-index: 200;
+    align-items: flex-start;
+    overflow-y: auto;
+    padding: 40px 20px;
+}
+#leaderboardContent {
+    background: #16213e;
+    border: 1px solid #2a2a4a;
+    border-radius: 12px;
+    padding: 24px;
+    width: 480px;
+    max-width: 92vw;
+    text-align: left;
+    margin: auto;
+}
+#leaderboardContent h2 { text-align: center; margin-top: 0; }
+#leaderboardList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 55vh;
+    overflow-y: auto;
+    padding-right: 4px;
+    margin-top: 14px;
+}
+.leaderboardRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #0d0d1a;
+    border: 1px solid #2a2a4a;
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+.leaderboardRank { font-weight: bold; color: #ffd60a; width: 28px; text-align: center; font-size: 14px; flex-shrink: 0; }
+.leaderboardInfo { flex: 1; min-width: 0; }
+.leaderboardName { font-weight: bold; font-size: 14px; color: #eaeaea; overflow-wrap: anywhere; }
+.leaderboardMeta { font-size: 12px; color: #9a9ab0; }
+.leaderboardScore { font-weight: bold; color: #00e0a1; font-size: 15px; flex-shrink: 0; }
+.leaderboardEmpty { text-align: center; color: #9a9ab0; padding: 20px 0; font-size: 13px; line-height: 1.5; }
+#leaderboardContent code { background: #0d0d1a; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+#leaderboardContent > button { display: block; margin: 18px auto 0; }
 
 /* --- Achievement toasts --- */
 #achievementToasts {

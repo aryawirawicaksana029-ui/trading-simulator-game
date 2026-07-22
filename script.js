@@ -39,6 +39,10 @@ let openTradeId = null;   // id of the currently open trade in tradeLog, or null
 let tutorialActive = false;
 let tutorialStep = 0;
 
+// --- Leaderboard State ---
+let peakBalance = 10000;       // best balance reached this run, used as the score on Game Over
+let leaderboardAvailable = false; // set true only if the Flask backend responds
+
 const levels = [
     { name: "Level 1: Calm Market", target: 12000, volatility: 15, speed: 1000, patternSet: [] },
     { name: "Level 2: Stormy Market",  target: 16000, volatility: 40, speed: 600, patternSet: [] },
@@ -929,6 +933,105 @@ function openAchievements() {
     showOverlay("achievementsOverlay");
 }
 
+// ================= LEADERBOARD (Flask backend) =================
+// This entire module degrades gracefully when app.py isn't running (e.g. the
+// game was opened directly as a file) — every fetch is wrapped so a failure
+// just disables the Leaderboard UI with a friendly message instead of
+// breaking anything else in the game.
+
+async function checkLeaderboardBackend() {
+    try {
+        const res = await fetch("/api/leaderboard", { method: "GET" });
+        leaderboardAvailable = res.ok;
+    } catch (e) {
+        leaderboardAvailable = false;
+    }
+}
+
+async function openLeaderboard() {
+    showOverlay("leaderboardOverlay");
+    const listEl = document.getElementById("leaderboardList");
+
+    if (!leaderboardAvailable) {
+        listEl.innerHTML = `<p class="leaderboardEmpty">No leaderboard server detected.<br>Run <code>python app.py</code> (see README) and reload this page to enable it.</p>`;
+        return;
+    }
+
+    listEl.innerHTML = `<p class="leaderboardEmpty">Loading…</p>`;
+    try {
+        const res = await fetch("/api/leaderboard");
+        if (!res.ok) throw new Error(`Server responded ${res.status}`);
+        renderLeaderboardRows(await res.json());
+    } catch (e) {
+        listEl.innerHTML = `<p class="leaderboardEmpty">Couldn't load the leaderboard right now.</p>`;
+    }
+}
+
+function renderLeaderboardRows(rows) {
+    const listEl = document.getElementById("leaderboardList");
+    if (!rows.length) {
+        listEl.innerHTML = `<p class="leaderboardEmpty">No scores yet — be the first!</p>`;
+        return;
+    }
+    const outcomeIcon = { champion: "🏆", cleared: "🎉", bankrupt: "💀" };
+    listEl.innerHTML = rows.map((r, i) => `
+        <div class="leaderboardRow">
+            <div class="leaderboardRank">#${i + 1}</div>
+            <div class="leaderboardInfo">
+                <div class="leaderboardName">${escapeHtml(r.name)}</div>
+                <div class="leaderboardMeta">${outcomeIcon[r.outcome] || "🎯"} ${escapeHtml(r.level)}</div>
+            </div>
+            <div class="leaderboardScore">$${Number(r.balance).toFixed(2)}</div>
+        </div>
+    `).join("");
+}
+
+async function submitScoreToServer(nameInputId, feedbackId, balanceValue, levelName, outcome) {
+    const nameInput = document.getElementById(nameInputId);
+    const feedbackEl = document.getElementById(feedbackId);
+    const name = (nameInput.value || "").trim();
+
+    if (!name) {
+        feedbackEl.textContent = "Enter a name first.";
+        feedbackEl.className = "leaderboardFeedback error";
+        return;
+    }
+    if (!leaderboardAvailable) {
+        feedbackEl.textContent = "Leaderboard server isn't running — see README.";
+        feedbackEl.className = "leaderboardFeedback error";
+        return;
+    }
+
+    localStorage.setItem("leaderboardPlayerName", name);
+    feedbackEl.textContent = "Submitting…";
+    feedbackEl.className = "leaderboardFeedback";
+
+    try {
+        const res = await fetch("/api/leaderboard", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, balance: balanceValue, level: levelName, outcome }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Server responded ${res.status}`);
+
+        feedbackEl.textContent = "🏆 Submitted! Opening the leaderboard…";
+        feedbackEl.className = "leaderboardFeedback success";
+        setTimeout(openLeaderboard, 600);
+    } catch (e) {
+        feedbackEl.textContent = "Couldn't submit: " + e.message;
+        feedbackEl.className = "leaderboardFeedback error";
+    }
+}
+
+function submitGameOverScore() {
+    submitScoreToServer("leaderboardNameGO", "leaderboardFeedbackGO", peakBalance, levels[currentLevel].name, "bankrupt");
+}
+
+function submitWinScore() {
+    submitScoreToServer("leaderboardNameWin", "leaderboardFeedbackWin", balance, levels[currentLevel].name, "champion");
+}
+
 // ================= TRADING ACTIONS =================
 function buy() {
     if (position !== null) {
@@ -995,6 +1098,7 @@ function sell(reason = "MANUAL") {
     }
     let profit = currentPrice - entryPrice;
     balance += profit;
+    if (balance > peakBalance) peakBalance = balance;
     document.getElementById('balanceText').innerText = balance.toFixed(2);
     document.getElementById('positionText').innerText = "None";
     position = null;
@@ -1089,6 +1193,8 @@ function checkWinLose() {
         cameFromGameOver = true;
         requestAICommentary({ type: "GAME_OVER", balance });
         playSound("gameOver");
+        document.getElementById("leaderboardNameGO").value = localStorage.getItem("leaderboardPlayerName") || "";
+        document.getElementById("leaderboardFeedbackGO").textContent = "";
         showOverlay("gameOverOverlay");
     } else if (balance >= levels[currentLevel].target) {
         clearInterval(gameInterval);
@@ -1101,6 +1207,8 @@ function checkWinLose() {
             showOverlay("levelClearOverlay");
         } else {
             unlockAchievement("champion");
+            document.getElementById("leaderboardNameWin").value = localStorage.getItem("leaderboardPlayerName") || "";
+            document.getElementById("leaderboardFeedbackWin").textContent = "";
             showOverlay("gameWinOverlay");
         }
     }
@@ -1120,6 +1228,7 @@ function restartLevel() {
         cameFromGameOver = false;
     }
     balance = 10000;
+    peakBalance = 10000;
     position = null;
     tradeLog = [];
     openTradeId = null;
@@ -1141,6 +1250,7 @@ document.getElementById("diaryBtn").addEventListener("click", openTradingDiary);
 document.getElementById("tutorialBtn").addEventListener("click", startTutorial);
 document.getElementById("soundToggleBtn").addEventListener("click", toggleSound);
 document.getElementById("achievementsBtn").addEventListener("click", openAchievements);
+document.getElementById("leaderboardBtn").addEventListener("click", openLeaderboard);
 
 updateSoundButtonUI();
 loadAISettingsFromSession();
@@ -1150,6 +1260,7 @@ if (aiCoachEnabled) {
         ? "AI Coach is live. Make your move!"
         : "⚠️ No API key set — using built-in fallback commentary instead of Groq.");
 }
+checkLeaderboardBackend(); // fire-and-forget — Leaderboard UI just no-ops gracefully if this fails
 
 loadLevel(0);
 showOverlay("welcomeOverlay");
