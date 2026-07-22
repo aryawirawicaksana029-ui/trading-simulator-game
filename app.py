@@ -23,18 +23,19 @@ pure client-side and does not depend on this server at all.
 NOTE ON TRUST: this is a hobby-project leaderboard, not an anti-cheat system.
 Scores are submitted directly from the browser with no login or signature, so
 anyone who can reach the API can POST a fake score with a plain HTTP request
-(e.g. curl). Basic sanity checks are applied below (name length, a finite
-balance within a generous upper bound) purely to keep obviously broken data
-out of the table — this does NOT verify a score was actually earned by
-playing the game. That's fine for friends comparing high scores; it is not
-suitable as-is for a public, competitive leaderboard without adding real
-authentication and server-side game-state verification.
+(e.g. curl). Basic sanity checks and a simple per-IP rate limit are applied
+below purely to keep obviously broken or spammy data out of the table — this
+does NOT verify a score was actually earned by playing the game, and the rate
+limit can be bypassed by anyone rotating IPs (a VPN, etc). That's fine for
+friends comparing high scores; it is not suitable as-is for a public,
+competitive leaderboard without adding real authentication and server-side
+game-state verification.
 """
 
 import os
 import re
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from flask import Flask, g, jsonify, request, send_from_directory
 
@@ -46,10 +47,16 @@ MAX_LEVEL_LENGTH = 60
 MAX_SANE_BALANCE = 10_000_000  # generous upper bound, just to catch garbage/typo'd input
 ALLOWED_OUTCOMES = {"cleared", "bankrupt", "champion"}
 LEADERBOARD_LIMIT = 20
+RATE_LIMIT_WINDOW_MINUTES = 10
+RATE_LIMIT_MAX_SUBMISSIONS = 5  # per IP, per window
 
 # static_folder="." + static_url_path="" lets Flask serve style.css/script.js
 # straight out of the project root, exactly where they already live.
 app = Flask(__name__, static_folder=BASE_DIR, static_url_path="")
+
+# Reject request bodies over 10KB outright — a leaderboard entry is a few
+# dozen bytes, so anything bigger is either a mistake or abuse.
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024
 
 
 # ---------------------------------------------------------------- database
@@ -77,12 +84,63 @@ def init_db():
             balance    REAL NOT NULL,
             level      TEXT NOT NULL,
             outcome    TEXT NOT NULL,
+            ip_address TEXT,
             created_at TEXT NOT NULL
         )
         """
     )
+    # Defensive migration for databases created before the ip_address column
+    # existed — harmless no-op if the column is already there.
+    try:
+        conn.execute("ALTER TABLE leaderboard ADD COLUMN ip_address TEXT")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
     conn.close()
+
+
+def get_client_ip():
+    # This server isn't expected to run behind a reverse proxy by default, so
+    # remote_addr (the actual TCP connection's IP) is trusted over any
+    # client-suppliable header. If you do put this behind nginx/a proxy,
+    # configure Flask's ProxyFix middleware instead of trusting headers here.
+    return request.remote_addr or "unknown"
+
+
+def is_rate_limited(db, ip_address):
+    window_start = (datetime.now(timezone.utc) - timedelta(minutes=RATE_LIMIT_WINDOW_MINUTES)).isoformat()
+    row = db.execute(
+        "SELECT COUNT(*) AS c FROM leaderboard WHERE ip_address = ? AND created_at > ?",
+        (ip_address, window_start),
+    ).fetchone()
+    return row["c"] >= RATE_LIMIT_MAX_SUBMISSIONS
+
+
+# ------------------------------------------------------------- error shape
+@app.errorhandler(404)
+def handle_404(_e):
+    return jsonify({"error": "Not found."}), 404
+
+
+@app.errorhandler(413)
+def handle_413(_e):
+    return jsonify({"error": "Request body too large."}), 413
+
+
+@app.errorhandler(500)
+def handle_500(_e):
+    # Never leak stack traces / internal paths to the client, even if DEBUG
+    # is accidentally left on. Real details still go to the server log.
+    app.logger.exception("Unhandled error")
+    return jsonify({"error": "Something went wrong on the server."}), 500
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer-when-downgrade"
+    return response
 
 
 # ------------------------------------------------------------------ routes
@@ -104,6 +162,12 @@ def get_leaderboard():
 
 @app.route("/api/leaderboard", methods=["POST"])
 def post_leaderboard():
+    db = get_db()
+    ip_address = get_client_ip()
+
+    if is_rate_limited(db, ip_address):
+        return jsonify({"error": "Too many submissions — please wait a few minutes and try again."}), 429
+
     data = request.get_json(silent=True) or {}
 
     name = re.sub(r"\s+", " ", str(data.get("name", "")).strip())[:MAX_NAME_LENGTH]
@@ -126,10 +190,9 @@ def post_leaderboard():
     if outcome not in ALLOWED_OUTCOMES:
         outcome = "cleared"
 
-    db = get_db()
     db.execute(
-        "INSERT INTO leaderboard (name, balance, level, outcome, created_at) VALUES (?, ?, ?, ?, ?)",
-        (name, balance, level, outcome, datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO leaderboard (name, balance, level, outcome, ip_address, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (name, balance, level, outcome, ip_address, datetime.now(timezone.utc).isoformat()),
     )
     db.commit()
     return jsonify({"status": "ok"}), 201

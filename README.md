@@ -85,7 +85,7 @@ That's it — `leaderboard.db` is created automatically on first run. If you eve
 | Method | Endpoint | Body | Notes |
 |---|---|---|---|
 | `GET` | `/api/leaderboard` | — | Returns the top 20 scores as JSON, sorted highest balance first |
-| `POST` | `/api/leaderboard` | `{ "name": "...", "balance": 12345.67, "level": "...", "outcome": "cleared" \| "bankrupt" \| "champion" }` | Adds one entry. `name` is trimmed to 20 characters; `balance` must be a finite number between 0 and 10,000,000 |
+| `POST` | `/api/leaderboard` | `{ "name": "...", "balance": 12345.67, "level": "...", "outcome": "cleared" \| "bankrupt" \| "champion" }` | Adds one entry. `name` is trimmed to 20 characters; `balance` must be a finite number between 0 and 10,000,000. Returns `429` if the same IP has submitted 5+ times in the last 10 minutes. |
 
 ⚠️ **Trust note:** this is a hobby-project leaderboard, not an anti-cheat system — anyone who can reach the API can `POST` a fake score directly (no login, no signature). The server only does basic sanity-checking on the data shape, not verification that a score was actually earned in-game. Fine for friends comparing runs; not something to expose publicly as a competitive leaderboard without adding real auth.
 
@@ -119,6 +119,34 @@ turso db tokens create trading-simulator-leaderboard  # copy this token — show
 **Local testing against the same setup** (recommended before deploying): copy `.env.example` to `.env` and fill in the same two values, then run `vercel dev` from the project root — it emulates the exact serverless environment Vercel uses in production, including routing `/api/leaderboard` to `api/leaderboard.py`.
 
 > **Honesty note:** this Vercel + Turso path was built and logic-tested locally (Flask route validation, sorting, error handling all verified against a stand-in database), but the actual Turso connection and Vercel's routing of `api/*.py` files could not be tested end-to-end in this environment — no live Turso account or Vercel deployment was available. The code follows the current official APIs for both platforms as closely as possible, but if something doesn't route correctly on your first deploy, check the **Vercel dashboard → your project → Functions** tab (build/runtime logs will show if `api/leaderboard.py` failed to build or crashed) and Vercel's [current Python runtime docs](https://vercel.com/docs/functions/runtimes/python).
+
+## 🔒 Security
+
+Both backends (`app.py` and `api/leaderboard.py`) share the same hardening, since they share the same trust model — a leaderboard anyone can submit to with no login:
+
+- **Per-IP rate limiting** — max 5 submissions per IP per 10 minutes, checked against the database itself (not in-memory) so it works correctly even across Vercel's serverless cold starts. `app.py` trusts the raw connection IP (`request.remote_addr`); `api/leaderboard.py` trusts `X-Forwarded-For` instead, because Vercel's edge network proxies every request and writes the real client IP there — trusting that header is only safe because Vercel itself sets it, not the client.
+- **Request size cap** — bodies over 10KB are rejected outright (`413`) before they're even parsed, so no one can send an enormous payload just to waste CPU/bandwidth.
+- **All errors return clean JSON** — 404, 413, 500, and the "Turso isn't configured yet" case all return a small `{"error": "..."}` body instead of an HTML error page or a raw stack trace. Real error details still go to the server log, never to the client.
+- **`debug=False` by default** in `app.py` — Flask's interactive debugger lets anyone who can reach it execute arbitrary code on your machine if it's ever left on somewhere reachable. Opt in explicitly with `FLASK_DEBUG=1` only for local development you control.
+- **Basic security headers** on every response — `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer-when-downgrade`.
+- **Parameterized SQL everywhere** — every query uses `?` placeholders, never string-formatted SQL, so user input can't break out of a query (SQL injection).
+- **XSS-safe rendering** — leaderboard names are escaped client-side (`escapeHtml()` in `script.js`) before being inserted into the page, so a name like `<script>...</script>` just displays as literal text instead of running.
+- **No server-side secrets in the frontend** — the Groq API key for the AI Coach is entered and used entirely in the browser; it's never sent to or stored by either backend.
+- **HTTPS** — free and automatic on Vercel; if self-hosting `app.py` publicly instead, put it behind a reverse proxy (nginx, Caddy) that terminates TLS, since Flask's dev server doesn't do HTTPS itself.
+
+**What this does *not* protect against**, so you go in with eyes open:
+- The rate limit is per-IP and can be bypassed by anyone rotating IPs (VPN, proxy). It raises the bar for casual spam; it doesn't stop a determined attacker.
+- There's still no authentication — anyone who finds your `/api/leaderboard` URL can submit a score directly with `curl`, bypassing the game entirely. Fine for a leaderboard among friends; not appropriate for a public competitive leaderboard without adding real auth and server-side verification that a score was actually earned.
+- Flask's built-in dev server (used by `app.py`) is not meant for production traffic even with debug off — for anything beyond casual/personal use, put a real WSGI server (gunicorn, waitress) in front of it, which is exactly what PythonAnywhere and most PaaS hosts already do for you automatically.
+
+## 🎨 Ideas for Further Polish
+
+Not yet implemented, but worth considering if you keep building on this:
+- **Daily Challenge mode** — same market seed for every player on a given day, so the Leaderboard becomes a fair, direct comparison
+- **PWA support** — installable + offline-capable, since the game is already almost entirely static
+- **Bahasa Indonesia localization**
+- **Export Trading Diary** to CSV
+- Custom typography, micro-interactions (count-up balance animation, confetti on Level Clear), and other visual polish beyond the current functional dark theme
 
 ## 🎯 How the Market Engine Works
 

@@ -25,13 +25,14 @@ For local development, either:
         on your own machine or a host like PythonAnywhere, no Turso needed.
 
 NOTE ON TRUST: same caveat as the local app.py — this is a hobby-project
-leaderboard, not an anti-cheat system. See app.py's module docstring for the
-full explanation; it applies here unchanged.
+leaderboard, not an anti-cheat system, and the per-IP rate limit below can be
+bypassed by anyone rotating IPs. See app.py's module docstring for the full
+explanation; it applies here unchanged.
 """
 
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from flask import Flask, jsonify, request
 
@@ -42,8 +43,11 @@ MAX_LEVEL_LENGTH = 60
 MAX_SANE_BALANCE = 10_000_000
 ALLOWED_OUTCOMES = {"cleared", "bankrupt", "champion"}
 LEADERBOARD_LIMIT = 20
+RATE_LIMIT_WINDOW_MINUTES = 10
+RATE_LIMIT_MAX_SUBMISSIONS = 5  # per IP, per window
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024  # reject bodies over 10KB outright
 
 
 def get_connection():
@@ -66,11 +70,66 @@ def ensure_table(con):
             balance    REAL NOT NULL,
             level      TEXT NOT NULL,
             outcome    TEXT NOT NULL,
+            ip_address TEXT,
             created_at TEXT NOT NULL
         )
         """
     )
     con.commit()
+
+
+def get_client_ip():
+    # Vercel's edge network proxies every request, so the real client IP
+    # arrives via X-Forwarded-For (the first entry in the list), not the
+    # socket-level address. Unlike app.py, trusting this header is correct
+    # here specifically because Vercel itself sets it — a client can't spoof
+    # what Vercel's own edge writes to that header.
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
+
+def is_rate_limited(con, ip_address):
+    cur = con.cursor()
+    window_start = (datetime.now(timezone.utc) - timedelta(minutes=RATE_LIMIT_WINDOW_MINUTES)).isoformat()
+    row = cur.execute(
+        "SELECT COUNT(*) FROM leaderboard WHERE ip_address = ? AND created_at > ?",
+        (ip_address, window_start),
+    ).fetchone()
+    return row[0] >= RATE_LIMIT_MAX_SUBMISSIONS
+
+
+@app.errorhandler(404)
+def handle_404(_e):
+    return jsonify({"error": "Not found."}), 404
+
+
+@app.errorhandler(413)
+def handle_413(_e):
+    return jsonify({"error": "Request body too large."}), 413
+
+
+@app.errorhandler(500)
+def handle_500(_e):
+    app.logger.exception("Unhandled error")
+    return jsonify({"error": "Something went wrong on the server."}), 500
+
+
+@app.errorhandler(RuntimeError)
+def handle_runtime_error(e):
+    # Specifically for the "env vars not configured" case from get_connection()
+    # — worth surfacing clearly since it's almost always a setup mistake, not
+    # a real production incident.
+    return jsonify({"error": str(e)}), 500
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer-when-downgrade"
+    return response
 
 
 @app.route("/api/leaderboard", methods=["GET"])
@@ -89,6 +148,13 @@ def get_leaderboard():
 
 @app.route("/api/leaderboard", methods=["POST"])
 def post_leaderboard():
+    con = get_connection()
+    ensure_table(con)
+    ip_address = get_client_ip()
+
+    if is_rate_limited(con, ip_address):
+        return jsonify({"error": "Too many submissions — please wait a few minutes and try again."}), 429
+
     data = request.get_json(silent=True) or {}
 
     name = re.sub(r"\s+", " ", str(data.get("name", "")).strip())[:MAX_NAME_LENGTH]
@@ -111,11 +177,9 @@ def post_leaderboard():
     if outcome not in ALLOWED_OUTCOMES:
         outcome = "cleared"
 
-    con = get_connection()
-    ensure_table(con)
     con.execute(
-        "INSERT INTO leaderboard (name, balance, level, outcome, created_at) VALUES (?, ?, ?, ?, ?)",
-        (name, balance, level, outcome, datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO leaderboard (name, balance, level, outcome, ip_address, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (name, balance, level, outcome, ip_address, datetime.now(timezone.utc).isoformat()),
     )
     con.commit()
     return jsonify({"status": "ok"}), 201
