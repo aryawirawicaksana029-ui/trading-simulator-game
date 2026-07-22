@@ -1,30 +1,77 @@
+/* =====================================================================
+   Trading Simulator Pro — "Terminal" design system
+   A trading-terminal heritage look (amber-on-void, monospace chrome)
+   paired with the game's Zero Jargon voice: serious instrument, friendly
+   words. One signature motif (HUD corner brackets + a blinking cursor)
+   carries the personality; everything else stays quiet and legible.
+   ===================================================================== */
+
+:root {
+    /* Surfaces */
+    --void: #0a0d0a;
+    --panel: #10160f;
+    --panel-alt: #171f15;
+    --border: #263326;
+    --border-bright: #3a4a30;
+
+    /* Accent — one warm accent for all UI chrome / interactive / "special" moments */
+    --amber: #ffb627;
+    --amber-dim: #8a6b1f;
+    --amber-soft: rgba(255, 182, 39, 0.14);
+
+    /* Trading semantics — matches real trading platforms: buy/profit/up = green, sell/loss/down = red */
+    --green: #3ddc84;
+    --green-dim: #1f7a49;
+    --red: #ff4d5e;
+    --red-dim: #8a2530;
+
+    /* Text */
+    --text: #e8ece4;
+    --text-muted: #8a9a82;
+    --text-dim: #526150;
+
+    /* Type */
+    --font-display: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
 * { box-sizing: border-box; }
 
 body {
-    background: #0d0d1a;
-    color: #eaeaea;
-    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--void);
+    background-image:
+        radial-gradient(ellipse 900px 500px at 50% -10%, rgba(255, 182, 39, 0.05), transparent),
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+    color: var(--text);
+    font-family: var(--font-body);
     text-align: center;
     margin: 0;
-    padding: 20px;
+    padding: 24px 20px;
 }
 
+p, .leaderboardEmpty, .diaryEmpty, .tutorialText, .overlay p { font-family: var(--font-body); }
+
 h1 {
-    color: #00b4d8;
+    color: var(--amber);
     margin-bottom: 5px;
     font-size: 26px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.5px;
 }
 
 #levelInfo {
-    color: #ffd60a;
-    font-size: 14px;
+    color: var(--text-muted);
+    font-family: var(--font-display);
+    font-size: 13px;
     margin-bottom: 6px;
 }
 
 #modeInfo {
     margin-bottom: 15px;
-    font-size: 15px;
-    color: #ffd60a;
+    font-size: 14px;
+    font-family: var(--font-display);
+    color: var(--amber);
     font-weight: bold;
 }
 
@@ -37,17 +84,19 @@ h1 {
     margin-bottom: 15px;
 }
 .card {
-    background: #16213e;
-    border: 1px solid #2a2a4a;
-    border-radius: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
     padding: 10px 20px;
     min-width: 150px;
+    transition: border-color 0.2s ease;
 }
-.card p { margin: 0; font-size: 13px; color: #9a9ab0; }
-.card h3 { margin: 4px 0 0; font-size: 20px; }
-#balanceText { color: #00e0a1; }
-#priceText { color: #ffd60a; }
-#positionText { font-size: 14px; }
+.card:hover { border-color: var(--border-bright); }
+.card p { margin: 0; font-size: 12px; color: var(--text-muted); font-family: var(--font-display); letter-spacing: 0.5px; text-transform: uppercase; }
+.card h3 { margin: 4px 0 0; font-size: 20px; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+#balanceText { color: var(--green); }
+#priceText { color: var(--amber); }
+#positionText { font-size: 14px; font-family: var(--font-display); }
 
 /* --- Sentiment Bar --- */
 #sentimentBar {
@@ -58,20 +107,22 @@ h1 {
 #sentimentLabels {
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
-    color: #9a9ab0;
+    font-size: 12px;
+    font-family: var(--font-display);
+    color: var(--text-muted);
     margin: 2px 0;
 }
-#sentimentBar p { font-size: 13px; margin: 2px 0; color: #9a9ab0; }
+#sentimentBar p { font-size: 13px; margin: 2px 0; color: var(--text-muted); font-family: var(--font-display); }
 #sentimentTrack {
-    background: #2a2a4a;
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
     border-radius: 10px;
     height: 14px;
     position: relative;
     overflow: hidden;
 }
 #sentimentFill {
-    background: linear-gradient(90deg, #3a86ff, #ffd60a, #ff4d6d);
+    background: linear-gradient(90deg, #4a8fd9, var(--amber), var(--red));
     height: 100%;
     width: 100%;
 }
@@ -81,19 +132,43 @@ h1 {
     left: 50%;
     width: 3px;
     height: 22px;
-    background: white;
+    background: var(--text);
+    box-shadow: 0 0 6px rgba(232, 236, 228, 0.8);
     transition: left 0.4s ease;
 }
-#sentimentText { font-weight: bold; margin-top: 6px; }
+#sentimentText { font-weight: bold; margin-top: 6px; font-family: var(--font-display); }
 
 /* --- Chart --- */
 #chartContainer {
     width: 100%;
     max-width: 720px;
     margin: 0 auto;
-    border-radius: 10px;
+    border-radius: 6px;
     overflow: hidden;
-    border: 1px solid #2a2a4a;
+    border: 1px solid var(--border);
+    position: relative;
+}
+
+/* Signature motif: HUD corner brackets on the hero element only */
+.hud-corners { position: relative; }
+.hud-corners::before,
+.hud-corners::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    pointer-events: none;
+    z-index: 5;
+}
+.hud-corners::before {
+    top: -1px; left: -1px;
+    border-top: 2px solid var(--amber);
+    border-left: 2px solid var(--amber);
+}
+.hud-corners::after {
+    bottom: -1px; right: -1px;
+    border-bottom: 2px solid var(--amber);
+    border-right: 2px solid var(--amber);
 }
 
 /* --- AI Coach Panel --- */
@@ -101,33 +176,34 @@ h1 {
     width: 720px;
     max-width: 100%;
     margin: 15px auto 0;
-    background: #16213e;
-    border: 1px solid #2a2a4a;
-    border-left: 3px solid #00b4d8;
-    border-radius: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--amber);
+    border-radius: 8px;
     padding: 12px 18px;
     text-align: left;
 }
 #aiCoachHeader {
-    font-size: 12px;
+    font-size: 11px;
+    font-family: var(--font-display);
     font-weight: bold;
-    letter-spacing: 0.5px;
-    color: #9a9ab0;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
     margin-bottom: 4px;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
-#aiCoachStatus { font-size: 12px; }
+#aiCoachStatus { font-size: 12px; font-family: var(--font-display); }
 #aiCoachText {
     margin: 0;
     font-size: 14.5px;
-    color: #eaeaea;
+    color: var(--text);
     line-height: 1.4;
     min-height: 20px;
 }
 #aiCoachText.thinking {
-    color: #9a9ab0;
+    color: var(--text-muted);
     font-style: italic;
 }
 #aiCoachText.thinking::after {
@@ -152,52 +228,31 @@ h1 {
 #controls button { margin: 0; }
 button {
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 14px 30px;
-    font-size: 16px;
-    font-weight: bold;
+    font-size: 15px;
+    font-family: var(--font-display);
+    font-weight: 700;
     cursor: pointer;
     margin: 6px 4px;
-    transition: transform 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 button:hover { transform: scale(1.05); }
-#buyBtn { background: #00b4d8; color: #0d0d1a; }
-#sellBtn { background: #ff4d6d; color: #0d0d1a; }
-#aiSettingsBtn {
-    background: #2a2a4a;
-    color: #eaeaea;
-    font-size: 14px;
-    padding: 14px 20px;
+button:active { transform: scale(0.98); }
+#buyBtn { background: var(--green); color: var(--void); }
+#buyBtn:hover { box-shadow: 0 0 16px rgba(61, 220, 132, 0.45); }
+#sellBtn { background: var(--red); color: var(--void); }
+#sellBtn:hover { box-shadow: 0 0 16px rgba(255, 77, 94, 0.45); }
+
+#aiSettingsBtn, #diaryBtn, #tutorialBtn, #soundToggleBtn, #achievementsBtn, #leaderboardBtn {
+    background: var(--panel-alt);
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    padding: 13px 19px;
 }
-#diaryBtn {
-    background: #2a2a4a;
-    color: #eaeaea;
-    font-size: 14px;
-    padding: 14px 20px;
-}
-#tutorialBtn {
-    background: #2a2a4a;
-    color: #eaeaea;
-    font-size: 14px;
-    padding: 14px 20px;
-}
-#soundToggleBtn {
-    background: #2a2a4a;
-    color: #eaeaea;
-    font-size: 14px;
-    padding: 14px 20px;
-}
-#achievementsBtn {
-    background: #2a2a4a;
-    color: #eaeaea;
-    font-size: 14px;
-    padding: 14px 20px;
-}
-#leaderboardBtn {
-    background: #2a2a4a;
-    color: #eaeaea;
-    font-size: 14px;
-    padding: 14px 20px;
+#aiSettingsBtn:hover, #diaryBtn:hover, #tutorialBtn:hover, #soundToggleBtn:hover, #achievementsBtn:hover, #leaderboardBtn:hover {
+    border-color: var(--amber);
 }
 
 /* --- Leaderboard score submission (Game Over / Win overlays) --- */
@@ -212,17 +267,18 @@ button:hover { transform: scale(1.05); }
 }
 .leaderboardSubmit input {
     width: 100%;
-    background: #0d0d1a;
-    border: 1px solid #2a2a4a;
-    color: #eaeaea;
+    background: var(--void);
+    border: 1px solid var(--border);
+    color: var(--text);
     border-radius: 6px;
     padding: 10px;
     font-size: 14px;
+    font-family: var(--font-body);
     text-align: center;
 }
 .leaderboardFeedback { font-size: 12px; margin: 2px 0 0; min-height: 14px; }
-.leaderboardFeedback.success { color: #00e0a1; }
-.leaderboardFeedback.error { color: #ff4d6d; }
+.leaderboardFeedback.success { color: var(--green); }
+.leaderboardFeedback.error { color: var(--red); }
 
 /* --- Leaderboard panel --- */
 #leaderboardOverlay {
@@ -232,9 +288,9 @@ button:hover { transform: scale(1.05); }
     padding: 40px 20px;
 }
 #leaderboardContent {
-    background: #16213e;
-    border: 1px solid #2a2a4a;
-    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 24px;
     width: 480px;
     max-width: 92vw;
@@ -255,18 +311,18 @@ button:hover { transform: scale(1.05); }
     display: flex;
     align-items: center;
     gap: 12px;
-    background: #0d0d1a;
-    border: 1px solid #2a2a4a;
-    border-radius: 8px;
+    background: var(--void);
+    border: 1px solid var(--border);
+    border-radius: 6px;
     padding: 10px 14px;
 }
-.leaderboardRank { font-weight: bold; color: #ffd60a; width: 28px; text-align: center; font-size: 14px; flex-shrink: 0; }
+.leaderboardRank { font-weight: bold; color: var(--amber); width: 28px; text-align: center; font-size: 14px; flex-shrink: 0; font-family: var(--font-display); }
 .leaderboardInfo { flex: 1; min-width: 0; }
-.leaderboardName { font-weight: bold; font-size: 14px; color: #eaeaea; overflow-wrap: anywhere; }
-.leaderboardMeta { font-size: 12px; color: #9a9ab0; }
-.leaderboardScore { font-weight: bold; color: #00e0a1; font-size: 15px; flex-shrink: 0; }
-.leaderboardEmpty { text-align: center; color: #9a9ab0; padding: 20px 0; font-size: 13px; line-height: 1.5; }
-#leaderboardContent code { background: #0d0d1a; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+.leaderboardName { font-weight: bold; font-size: 14px; color: var(--text); overflow-wrap: anywhere; }
+.leaderboardMeta { font-size: 12px; color: var(--text-muted); }
+.leaderboardScore { font-weight: bold; color: var(--green); font-size: 15px; flex-shrink: 0; font-family: var(--font-display); }
+.leaderboardEmpty { text-align: center; color: var(--text-muted); padding: 20px 0; font-size: 13px; line-height: 1.5; }
+#leaderboardContent code { background: var(--void); padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: var(--font-display); color: var(--amber); }
 #leaderboardContent > button { display: block; margin: 18px auto 0; }
 
 /* --- Achievement toasts --- */
@@ -284,22 +340,22 @@ button:hover { transform: scale(1.05); }
     display: flex;
     gap: 12px;
     align-items: center;
-    background: #16213e;
-    border: 1px solid #ffd60a;
-    border-radius: 10px;
+    background: var(--panel);
+    border: 1px solid var(--amber);
+    border-radius: 8px;
     padding: 12px 16px;
     width: 280px;
     max-width: 85vw;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 20px rgba(255, 182, 39, 0.12);
     opacity: 0;
     transform: translateX(30px);
     transition: opacity 0.35s ease, transform 0.35s ease;
 }
 .achievementToast.show { opacity: 1; transform: translateX(0); }
 .achievementToastIcon { font-size: 28px; }
-.achievementToastLabel { font-size: 10px; color: #ffd60a; font-weight: bold; letter-spacing: 0.5px; }
-.achievementToastTitle { font-size: 14px; font-weight: bold; color: #eaeaea; margin: 2px 0; }
-.achievementToastDesc { font-size: 12px; color: #9a9ab0; }
+.achievementToastLabel { font-size: 10px; color: var(--amber); font-weight: bold; letter-spacing: 0.5px; font-family: var(--font-display); }
+.achievementToastTitle { font-size: 14px; font-weight: bold; color: var(--text); margin: 2px 0; }
+.achievementToastDesc { font-size: 12px; color: var(--text-muted); }
 
 /* --- Achievements panel --- */
 #achievementsOverlay {
@@ -309,9 +365,9 @@ button:hover { transform: scale(1.05); }
     padding: 40px 20px;
 }
 #achievementsContent {
-    background: #16213e;
-    border: 1px solid #2a2a4a;
-    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 24px;
     width: 560px;
     max-width: 92vw;
@@ -319,7 +375,7 @@ button:hover { transform: scale(1.05); }
     margin: auto;
 }
 #achievementsContent h2 { text-align: center; margin-top: 0; }
-#achievementsCount { text-align: center; color: #9a9ab0; font-size: 13px; margin-bottom: 16px; }
+#achievementsCount { text-align: center; color: var(--text-muted); font-size: 13px; margin-bottom: 16px; font-family: var(--font-display); }
 #achievementsList {
     display: flex;
     flex-direction: column;
@@ -332,30 +388,31 @@ button:hover { transform: scale(1.05); }
     display: flex;
     gap: 12px;
     align-items: center;
-    background: #0d0d1a;
-    border: 1px solid #2a2a4a;
-    border-radius: 8px;
+    background: var(--void);
+    border: 1px solid var(--border);
+    border-radius: 6px;
     padding: 10px 14px;
+    transition: opacity 0.2s ease, border-color 0.2s ease;
 }
-.achievementRow.locked { opacity: 0.5; }
-.achievementRow.unlocked { border-color: #ffd60a; }
+.achievementRow.locked { opacity: 0.45; }
+.achievementRow.unlocked { border-color: var(--amber); }
 .achievementRowIcon { font-size: 24px; width: 30px; text-align: center; }
-.achievementRowTitle { font-size: 14px; font-weight: bold; color: #eaeaea; }
-.achievementRowDesc { font-size: 12px; color: #9a9ab0; }
+.achievementRowTitle { font-size: 14px; font-weight: bold; color: var(--text); }
+.achievementRowDesc { font-size: 12px; color: var(--text-muted); }
 #achievementsContent > button { display: block; margin: 18px auto 0; }
 
 /* --- Interactive Tutorial (Level 0) --- */
 .tutorialHighlight {
     position: relative;
-    outline: 3px solid #ffd60a;
+    outline: 3px solid var(--amber);
     outline-offset: 3px;
-    border-radius: 10px;
+    border-radius: 8px;
     animation: tutorialPulse 1.4s ease-in-out infinite;
     z-index: 150;
 }
 @keyframes tutorialPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 214, 10, 0.5); }
-    50% { box-shadow: 0 0 0 10px rgba(255, 214, 10, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 182, 39, 0.5); }
+    50% { box-shadow: 0 0 0 10px rgba(255, 182, 39, 0); }
 }
 #tutorialTooltip {
     display: none;
@@ -363,30 +420,35 @@ button:hover { transform: scale(1.05); }
     z-index: 300;
     width: 300px;
     max-width: 88vw;
-    background: #16213e;
-    border: 1px solid #ffd60a;
-    border-radius: 10px;
+    background: var(--panel);
+    border: 1px solid var(--amber);
+    border-radius: 8px;
     padding: 16px;
     text-align: left;
     box-shadow: 0 8px 24px rgba(0,0,0,0.5);
 }
-#tutorialTooltip.show { display: block; }
+#tutorialTooltip.show { display: block; animation: tooltipIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes tooltipIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 .tutorialCounter {
     font-size: 11px;
-    color: #ffd60a;
+    font-family: var(--font-display);
+    color: var(--amber);
     font-weight: bold;
     letter-spacing: 0.5px;
     margin-bottom: 6px;
 }
 .tutorialText {
     font-size: 14px;
-    color: #eaeaea;
+    color: var(--text);
     line-height: 1.45;
     margin: 0 0 12px;
 }
 .tutorialActionHint {
     font-size: 13px;
-    color: #ffd60a;
+    color: var(--amber);
     font-weight: bold;
     margin: 0 0 10px;
 }
@@ -398,7 +460,7 @@ button:hover { transform: scale(1.05); }
 .tutorialSkip {
     display: block;
     background: none !important;
-    color: #9a9ab0 !important;
+    color: var(--text-muted) !important;
     font-size: 12px !important;
     font-weight: normal !important;
     text-decoration: underline;
@@ -406,7 +468,7 @@ button:hover { transform: scale(1.05); }
     margin-top: 8px !important;
     cursor: pointer;
 }
-.tutorialSkip:hover { transform: none; color: #eaeaea !important; }
+.tutorialSkip:hover { transform: none; color: var(--text) !important; }
 #welcomeOverlay p { max-width: 420px; font-size: 15px; }
 
 /* --- Trading Diary --- */
@@ -417,9 +479,9 @@ button:hover { transform: scale(1.05); }
     padding: 40px 20px;
 }
 #diaryContent {
-    background: #16213e;
-    border: 1px solid #2a2a4a;
-    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 24px;
     width: 640px;
     max-width: 92vw;
@@ -435,15 +497,15 @@ button:hover { transform: scale(1.05); }
     margin-bottom: 18px;
 }
 .diaryStat {
-    background: #0d0d1a;
-    border: 1px solid #2a2a4a;
-    border-radius: 8px;
+    background: var(--void);
+    border: 1px solid var(--border);
+    border-radius: 6px;
     padding: 8px 16px;
     text-align: center;
     min-width: 100px;
 }
-.diaryStat .label { display: block; font-size: 11px; color: #9a9ab0; }
-.diaryStat .value { display: block; font-size: 18px; font-weight: bold; margin-top: 2px; }
+.diaryStat .label { display: block; font-size: 11px; color: var(--text-muted); font-family: var(--font-display); }
+.diaryStat .value { display: block; font-size: 18px; font-weight: bold; margin-top: 2px; font-family: var(--font-display); }
 #diaryList {
     display: flex;
     flex-direction: column;
@@ -453,15 +515,15 @@ button:hover { transform: scale(1.05); }
     padding-right: 4px;
 }
 .diaryEntry {
-    background: #0d0d1a;
-    border: 1px solid #2a2a4a;
-    border-left: 3px solid #00b4d8;
-    border-radius: 8px;
+    background: var(--void);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--amber);
+    border-radius: 6px;
     padding: 10px 14px;
     font-size: 13.5px;
 }
-.diaryEntry.profit { border-left-color: #00e0a1; }
-.diaryEntry.loss { border-left-color: #ff4d6d; }
+.diaryEntry.profit { border-left-color: var(--green); }
+.diaryEntry.loss { border-left-color: var(--red); }
 .diaryEntryHead {
     display: flex;
     justify-content: space-between;
@@ -469,12 +531,13 @@ button:hover { transform: scale(1.05); }
     gap: 4px;
     font-weight: bold;
     margin-bottom: 4px;
+    font-family: var(--font-display);
 }
-.diaryPL.profit-text { color: #00e0a1; }
-.diaryPL.loss-text { color: #ff4d6d; }
-.diaryMeta { color: #9a9ab0; font-size: 12px; margin-bottom: 4px; }
-.diaryComment { font-style: italic; color: #ccc; font-size: 12.5px; margin-top: 4px; }
-.diaryEmpty { text-align: center; color: #9a9ab0; padding: 30px 0; }
+.diaryPL.profit-text { color: var(--green); }
+.diaryPL.loss-text { color: var(--red); }
+.diaryMeta { color: var(--text-muted); font-size: 12px; margin-bottom: 4px; }
+.diaryComment { font-style: italic; color: var(--text-muted); font-size: 12.5px; margin-top: 4px; }
+.diaryEmpty { text-align: center; color: var(--text-muted); padding: 30px 0; }
 #diaryContent > button { display: block; margin: 18px auto 0; }
 
 /* --- AI Settings Form (inside overlay) --- */
@@ -489,49 +552,99 @@ button:hover { transform: scale(1.05); }
 }
 .settingsForm label {
     font-size: 13px;
-    color: #9a9ab0;
+    color: var(--text-muted);
     margin-top: 8px;
+    font-family: var(--font-display);
 }
 .settingsForm input[type="password"],
 .settingsForm select {
-    background: #0d0d1a;
-    border: 1px solid #2a2a4a;
-    color: #eaeaea;
+    background: var(--void);
+    border: 1px solid var(--border);
+    color: var(--text);
     border-radius: 6px;
     padding: 10px;
     font-size: 14px;
+    font-family: var(--font-body);
 }
 .checkboxLabel {
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    color: #ccc !important;
+    color: var(--text-muted) !important;
     margin-top: 10px !important;
 }
 .checkboxLabel input { width: 16px; height: 16px; }
 .overlayBtnRow { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-.secondaryBtn { background: #2a2a4a !important; color: #eaeaea !important; }
+.secondaryBtn { background: var(--panel-alt) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
 #aiSettingsOverlay p { max-width: 380px; font-size: 14px; }
-#aiSettingsOverlay a { color: #00b4d8; }
+#aiSettingsOverlay a { color: var(--amber); }
 
 /* --- Overlay (Game Over / Level Clear) --- */
 .overlay {
     display: none;
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.85);
+    background: rgba(4, 6, 4, 0.88);
     justify-content: center;
     align-items: center;
     flex-direction: column;
     z-index: 100;
 }
-.overlay.show { display: flex; }
-.overlay h2 { font-size: 32px; margin-bottom: 10px; }
-.overlay p { font-size: 16px; color: #ccc; margin-bottom: 20px; }
+.overlay.show { display: flex; animation: overlayIn 0.25s ease; }
+@keyframes overlayIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+#diaryContent, #achievementsContent, #leaderboardContent {
+    animation: cardIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes cardIn {
+    from { opacity: 0; transform: scale(0.96) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.overlay h2 { font-size: 30px; margin-bottom: 10px; font-family: var(--font-display); }
+.overlay p { font-size: 16px; color: var(--text-muted); margin-bottom: 20px; }
 .overlay button {
-    background: #00b4d8;
-    color: #0d0d1a;
+    background: var(--amber);
+    color: var(--void);
+}
+
+/* --- Confetti (Level Clear / Win) --- */
+#confettiLayer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 500;
+    overflow: hidden;
+}
+.confettiPiece {
+    position: absolute;
+    top: -10px;
+    width: 8px;
+    height: 14px;
+    opacity: 0.9;
+    animation: confettiFall linear forwards;
+}
+@keyframes confettiFall {
+    to { transform: translateY(105vh) rotate(540deg); opacity: 0.2; }
+}
+
+/* --- Accessibility: visible focus, reduced motion --- */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 /* --- Mobile responsive layout --- */
@@ -541,17 +654,17 @@ button:hover { transform: scale(1.05); }
     #levelInfo, #modeInfo { font-size: 13px; }
 
     .overlay { padding: 16px; }
-    .overlay h2 { font-size: 23px; }
+    .overlay h2 { font-size: 22px; }
     .overlay p { font-size: 14px; }
     .overlay { justify-content: flex-start; padding-top: 60px; overflow-y: auto; }
 
     #infoRow { gap: 10px; }
     .card { min-width: 95px; padding: 8px 12px; }
-    .card p { font-size: 11px; }
+    .card p { font-size: 10.5px; }
     .card h3 { font-size: 16px; }
 
     #controls { gap: 8px; }
-    #controls button { padding: 11px 14px; font-size: 12.5px; }
+    #controls button { padding: 11px 14px; font-size: 12px; }
 
     #diaryContent, #achievementsContent { padding: 16px; }
     #tutorialTooltip { padding: 12px; }
@@ -561,6 +674,6 @@ button:hover { transform: scale(1.05); }
 }
 
 @media (max-width: 360px) {
-    #controls button { padding: 9px 10px; font-size: 11px; }
+    #controls button { padding: 9px 10px; font-size: 10.5px; }
     h1 { font-size: 19px; }
 }

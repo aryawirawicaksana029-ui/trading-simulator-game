@@ -62,12 +62,12 @@ const chart = LightweightCharts.createChart(chartContainerEl, {
     width: chartContainerEl.clientWidth,
     height: getChartHeight(),
     layout: {
-        background: { color: '#16213e' },
-        textColor: '#eaeaea',
+        background: { color: '#10160f' },
+        textColor: '#e8ece4',
     },
     grid: {
-        vertLines: { color: '#22224a' },
-        horzLines: { color: '#22224a' },
+        vertLines: { color: '#1a2318' },
+        horzLines: { color: '#1a2318' },
     },
     timeScale: {
         timeVisible: true,
@@ -76,11 +76,11 @@ const chart = LightweightCharts.createChart(chartContainerEl, {
 });
 
 const candleSeries = chart.addCandlestickSeries({
-    upColor: '#00b4d8',
-    downColor: '#ff4d6d',
+    upColor: '#3ddc84',
+    downColor: '#ff4d5e',
     borderVisible: false,
-    wickUpColor: '#00b4d8',
-    wickDownColor: '#ff4d6d',
+    wickUpColor: '#3ddc84',
+    wickDownColor: '#ff4d5e',
 });
 
 // Keep the chart's pixel size in sync with its container across orientation
@@ -578,7 +578,7 @@ function renderTradingDiary() {
     summaryEl.innerHTML = `
         <div class="diaryStat"><span class="label">TRADES</span><span class="value">${tradeLog.length}</span></div>
         <div class="diaryStat"><span class="label">WIN RATE</span><span class="value">${winRate}%</span></div>
-        <div class="diaryStat"><span class="label">NET P/L</span><span class="value" style="color:${netPL >= 0 ? '#00e0a1' : '#ff4d6d'}">$${netPL.toFixed(2)}</span></div>
+        <div class="diaryStat"><span class="label">NET P/L</span><span class="value" style="color:${netPL >= 0 ? '#3ddc84' : '#ff4d5e'}">$${netPL.toFixed(2)}</span></div>
     `;
 
     listEl.innerHTML = tradeLog.map(t => {
@@ -1032,6 +1032,50 @@ function submitWinScore() {
     submitScoreToServer("leaderboardNameWin", "leaderboardFeedbackWin", balance, levels[currentLevel].name, "champion");
 }
 
+// ================= MOTION (number tween + confetti) =================
+// Respect the OS-level "reduce motion" preference — skip the animated tween
+// and confetti burst entirely, just jump straight to the end state.
+function prefersReducedMotion() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+// Tweens the text of a balance/number element from its current value to a
+// new one over `duration` ms, instead of snapping straight to the new digits.
+function animateNumberChange(el, fromValue, toValue, duration = 450) {
+    if (prefersReducedMotion() || fromValue === toValue) {
+        el.innerText = toValue.toFixed(2);
+        return;
+    }
+    const start = performance.now();
+    function tick(now) {
+        const progress = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+        const current = fromValue + (toValue - fromValue) * eased;
+        el.innerText = current.toFixed(2);
+        if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+}
+
+const CONFETTI_COLORS = ["#ffb627", "#3ddc84", "#ff4d5e", "#e8ece4"];
+
+function triggerConfetti(count = 60) {
+    if (prefersReducedMotion()) return;
+    const layer = document.getElementById("confettiLayer");
+    if (!layer) return;
+
+    for (let i = 0; i < count; i++) {
+        const piece = document.createElement("div");
+        piece.className = "confettiPiece";
+        piece.style.left = `${Math.random() * 100}%`;
+        piece.style.background = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+        piece.style.animationDuration = `${1.8 + Math.random() * 1.4}s`;
+        piece.style.animationDelay = `${Math.random() * 0.3}s`;
+        layer.appendChild(piece);
+        setTimeout(() => piece.remove(), 3600);
+    }
+}
+
 // ================= TRADING ACTIONS =================
 function buy() {
     if (position !== null) {
@@ -1057,12 +1101,12 @@ function buy() {
     if (tpLine) candleSeries.removePriceLine(tpLine);
 
     slLine = candleSeries.createPriceLine({
-        price: slPrice, color: '#ff4d6d', lineWidth: 2,
+        price: slPrice, color: '#ff4d5e', lineWidth: 2,
         lineStyle: LightweightCharts.LineStyle.Dashed,
         axisLabelVisible: true, title: 'SL'
     });
     tpLine = candleSeries.createPriceLine({
-        price: tpPrice, color: '#00e0a1', lineWidth: 2,
+        price: tpPrice, color: '#3ddc84', lineWidth: 2,
         lineStyle: LightweightCharts.LineStyle.Dashed,
         axisLabelVisible: true, title: 'TP'
     });
@@ -1097,9 +1141,10 @@ function sell(reason = "MANUAL") {
         return;
     }
     let profit = currentPrice - entryPrice;
+    const balanceBefore = balance;
     balance += profit;
     if (balance > peakBalance) peakBalance = balance;
-    document.getElementById('balanceText').innerText = balance.toFixed(2);
+    animateNumberChange(document.getElementById('balanceText'), balanceBefore, balance);
     document.getElementById('positionText').innerText = "None";
     position = null;
 
@@ -1204,11 +1249,13 @@ function checkWinLose() {
         if (currentLevel + 1 < levels.length) {
             document.getElementById('levelClearMsg').innerText =
                 `Your balance of $${balance.toFixed(2)} has exceeded the target! Ready to proceed to ${levels[currentLevel+1].name}?`;
+            triggerConfetti();
             showOverlay("levelClearOverlay");
         } else {
             unlockAchievement("champion");
             document.getElementById("leaderboardNameWin").value = localStorage.getItem("leaderboardPlayerName") || "";
             document.getElementById("leaderboardFeedbackWin").textContent = "";
+            triggerConfetti(110);
             showOverlay("gameWinOverlay");
         }
     }

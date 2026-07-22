@@ -139,14 +139,23 @@ Both backends (`app.py` and `api/leaderboard.py`) share the same hardening, sinc
 - There's still no authentication — anyone who finds your `/api/leaderboard` URL can submit a score directly with `curl`, bypassing the game entirely. Fine for a leaderboard among friends; not appropriate for a public competitive leaderboard without adding real auth and server-side verification that a score was actually earned.
 - Flask's built-in dev server (used by `app.py`) is not meant for production traffic even with debug off — for anything beyond casual/personal use, put a real WSGI server (gunicorn, waitress) in front of it, which is exactly what PythonAnywhere and most PaaS hosts already do for you automatically.
 
-## 🎨 Ideas for Further Polish
+## 🎨 Design System
+
+The UI was redesigned around a **"trading terminal" identity** — leaning into the visual heritage of real trading terminals (amber-on-void, monospace chrome) while keeping the game's Zero Jargon voice underneath: a serious-looking instrument that talks to you in plain words.
+
+- **Palette** — a near-black void (`#0a0d0a`) with dark green-tinted panels, one warm amber accent (`#ffb627`) for all UI chrome (headers, secondary buttons, focus states, tutorial/achievement highlights), and green/red (`#3ddc84` / `#ff4d5e`) reserved specifically for buy-sell and profit-loss — matching the color convention real trading platforms use, so it doubles as reinforcement for what those colors mean.
+- **Type** — [JetBrains Mono](https://www.jetbrains.com/lp/mono/) for headers, buttons, and every number on screen (that "ticking terminal" feel, with tabular figures so digits align), paired with [Inter](https://rsms.me/inter/) for longer text (tutorial steps, AI Coach commentary, diary entries) where a humanist sans reads easier over a few sentences.
+- **Signature motif** — HUD-style corner brackets on the chart, the one place the design spends its "boldness" per the classic advice to pick one memorable element and keep everything else quiet.
+- **Motion, used with restraint** — each animation is tied to something happening, not ambient decoration: the balance ticks up/down instead of snapping to its new value, overlays fade and their content card scales in, a small confetti burst marks Level Clear and the final win. Everything respects `prefers-reduced-motion` and is skipped entirely for anyone with that OS setting on.
+- **Accessibility floor** — visible focus rings (`:focus-visible`) on every button/input/select, and all of the above.
+
+## 💡 Ideas for Further Polish
 
 Not yet implemented, but worth considering if you keep building on this:
 - **Daily Challenge mode** — same market seed for every player on a given day, so the Leaderboard becomes a fair, direct comparison
 - **PWA support** — installable + offline-capable, since the game is already almost entirely static
 - **Bahasa Indonesia localization**
 - **Export Trading Diary** to CSV
-- Custom typography, micro-interactions (count-up balance animation, confetti on Level Clear), and other visual polish beyond the current functional dark theme
 
 ## 🎯 How the Market Engine Works
 
