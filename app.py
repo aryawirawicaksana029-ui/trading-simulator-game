@@ -139,5 +139,10 @@ if __name__ == "__main__":
     init_db()
     # host=127.0.0.1 keeps this reachable only from your own machine by
     # default. Change to "0.0.0.0" only if you deliberately want it reachable
-    # from other devices on your network, and turn debug off if you do.
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    # from other devices on your network.
+    #
+    # debug defaults to OFF: Flask's debugger lets anyone who can reach it run
+    # arbitrary code on your machine if an error occurs. Only turn it on for
+    # local development you control: FLASK_DEBUG=1 python app.py
+    debug_mode = os.environ.get("FLASK_DEBUG") == "1"
+    app.run(host="127.0.0.1", port=5000, debug=debug_mode)

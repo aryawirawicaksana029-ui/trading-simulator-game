@@ -36,7 +36,8 @@ Most trading education content is full of jargon (RSI, Fibonacci, Moving Average
 - **CSS3** — dark-themed, card-based UI
 - **Vanilla JavaScript** — game state, market simulation logic, DOM manipulation
 - **[TradingView Lightweight Charts](https://tradingview.github.io/lightweight-charts/)** — professional-grade candlestick rendering (via CDN, no build step needed)
-- **Flask + SQLite** *(optional)* — a tiny backend that persists the Leaderboard across sessions and players. Fully optional: every other feature works with zero backend, as a plain static site.
+- **Flask + SQLite** *(optional, for local/self-hosted use)* — a tiny backend that persists the Leaderboard across sessions and players. Fully optional: every other feature works with zero backend, as a plain static site.
+- **Flask + Turso** *(optional, for deploying on Vercel)* — the same Leaderboard API, adapted to run as a Vercel serverless function backed by [Turso](https://turso.tech) (a hosted, SQLite-compatible database), since Vercel's functions don't have a persistent local disk.
 
 ## 📁 Project Structure
 
@@ -44,12 +45,18 @@ Most trading education content is full of jargon (RSI, Fibonacci, Moving Average
 trading-simulator-game/
 ├── index.html          # Page structure & markup
 ├── style.css           # All styling (dark theme, cards, overlays)
-├── script.js           # Game state, market engine, trading logic
-├── app.py              # Optional Flask backend (serves the game + the Leaderboard API)
-├── requirements.txt    # Python dependency for app.py (just Flask)
+├── script.js           # Game state, market engine, trading logic (talks to /api/leaderboard either way)
+├── app.py              # Flask + local SQLite backend — for running on your own machine or PythonAnywhere
+├── api/
+│   └── leaderboard.py  # Flask + Turso backend — becomes /api/leaderboard automatically when deployed on Vercel
+├── requirements.txt    # Python deps for either backend (Flask, libsql)
+├── .env.example        # Documents the two env vars api/leaderboard.py needs (copy to .env, never commit the real one)
+├── .gitignore           # Keeps leaderboard.db, .env, and __pycache__ out of version control
 ├── leaderboard.db       # Created automatically the first time app.py runs (SQLite) — not checked in
 └── README.md
 ```
+
+Only one of the two backends is "active" per deployment: run `app.py` yourself → it uses local SQLite. Deploy the whole folder to Vercel → `api/leaderboard.py` takes over automatically and talks to Turso instead. `script.js` doesn't know or care which one is answering — both expose the exact same `/api/leaderboard` contract.
 
 ## 🚀 How to Run
 
@@ -81,6 +88,37 @@ That's it — `leaderboard.db` is created automatically on first run. If you eve
 | `POST` | `/api/leaderboard` | `{ "name": "...", "balance": 12345.67, "level": "...", "outcome": "cleared" \| "bankrupt" \| "champion" }` | Adds one entry. `name` is trimmed to 20 characters; `balance` must be a finite number between 0 and 10,000,000 |
 
 ⚠️ **Trust note:** this is a hobby-project leaderboard, not an anti-cheat system — anyone who can reach the API can `POST` a fake score directly (no login, no signature). The server only does basic sanity-checking on the data shape, not verification that a score was actually earned in-game. Fine for friends comparing runs; not something to expose publicly as a competitive leaderboard without adding real auth.
+
+### Option C — Deploy publicly on Vercel + Turso
+
+This is the path to a real, shareable URL instead of `127.0.0.1`. Vercel is excellent for the static frontend, but its Python functions have **no persistent disk** — a local SQLite file would get wiped on every cold start. [Turso](https://turso.tech) solves this: it's SQLite-compatible but hosted, reachable over HTTPS, so it survives serverless restarts. That's what `api/leaderboard.py` is built for.
+
+**1. Create the Turso database** (free tier, no credit card needed):
+```bash
+curl -sSfL https://get.tur.so/install.sh | bash   # installs the Turso CLI
+turso auth signup                                  # or `turso auth login` if you already have an account
+turso db create trading-simulator-leaderboard
+turso db show trading-simulator-leaderboard        # copy the "URL" (starts with libsql://)
+turso db tokens create trading-simulator-leaderboard  # copy this token — shown only once
+```
+
+**2. Deploy to Vercel:**
+- Push this repo to GitHub, then [import it on vercel.com](https://vercel.com/new) — Vercel auto-detects `index.html` as a static site and `api/leaderboard.py` as a serverless function, no build config needed
+- Or via CLI: `npm i -g vercel && vercel` from the project root
+- Either way, before (or right after) the first deploy, add two environment variables in **Project Settings → Environment Variables**:
+
+| Key | Value |
+|---|---|
+| `TURSO_DATABASE_URL` | the `libsql://...` URL from step 1 |
+| `TURSO_AUTH_TOKEN` | the token from step 1 |
+
+- Redeploy after adding the env vars (Vercel only reads them at build/deploy time)
+
+**3. Open your `*.vercel.app` URL** — the game loads as a static site, and the **🏆 Leaderboard** button now talks to `/api/leaderboard`, which Vercel routes to `api/leaderboard.py`, which reads/writes your Turso database.
+
+**Local testing against the same setup** (recommended before deploying): copy `.env.example` to `.env` and fill in the same two values, then run `vercel dev` from the project root — it emulates the exact serverless environment Vercel uses in production, including routing `/api/leaderboard` to `api/leaderboard.py`.
+
+> **Honesty note:** this Vercel + Turso path was built and logic-tested locally (Flask route validation, sorting, error handling all verified against a stand-in database), but the actual Turso connection and Vercel's routing of `api/*.py` files could not be tested end-to-end in this environment — no live Turso account or Vercel deployment was available. The code follows the current official APIs for both platforms as closely as possible, but if something doesn't route correctly on your first deploy, check the **Vercel dashboard → your project → Functions** tab (build/runtime logs will show if `api/leaderboard.py` failed to build or crashed) and Vercel's [current Python runtime docs](https://vercel.com/docs/functions/runtimes/python).
 
 ## 🎯 How the Market Engine Works
 

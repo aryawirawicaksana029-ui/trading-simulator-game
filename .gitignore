@@ -1,0 +1,15 @@
+# Local SQLite database created by app.py — regenerated automatically, never commit it
+leaderboard.db
+
+# Real secrets — copy .env.example to .env locally, never commit the real one
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Vercel local cache
+.vercel
