@@ -20,6 +20,17 @@ let priceCeiling = 0;
 let priceFloor = 0;
 let crashCandlesLeft = 0;
 
+// --- Price Floor (prevents the random walk from drifting to 0 or negative
+// over a long session — crashes and downtrends now ease off as price nears
+// this floor instead of slamming into it or blowing straight through) ---
+const MIN_PRICE = 5;
+const FLOOR_CUSHION = 40; // start dampening downward moves once price is within this range above MIN_PRICE
+
+// --- Mean Reversion (keeps the market drifting back toward a normal
+// operating range after a crash, instead of staying pinned near the floor) ---
+const REFERENCE_PRICE = 200; // matches the starting price set in loadLevel()
+const MEAN_REVERSION_STRENGTH = 0.015; // fraction of the gap pulled back per candle
+
 // --- Advanced Pattern State (Level 3+) ---
 let fakeBreakoutCandle = -1;      // which candle within the mode triggers the lure
 let fakeBreakoutDirection = null; // "UP" or "DOWN" — which way the lure broke, so the trap snaps back opposite
@@ -94,8 +105,27 @@ window.addEventListener('resize', () => {
 });
 
 // ================= CORE MARKET LOGIC =================
+// Softens further downward movement as price nears MIN_PRICE, so a crash or
+// downtrend eases off like a real market approaching a support level instead
+// of drifting straight through zero into nonsensical negative territory.
+function dampenNearFloor(change, price) {
+    if (change < 0 && price < MIN_PRICE + FLOOR_CUSHION) {
+        const distanceAboveFloor = Math.max(price - MIN_PRICE, 0);
+        const dampingFactor = Math.max(distanceAboveFloor / FLOOR_CUSHION, 0.08); // never fully zero — keeps some noise/movement
+        return change * dampingFactor;
+    }
+    return change;
+}
+
 function generateNewCandle() {
-    const vol = levels[currentLevel].volatility;
+    // Volatility scales with the CURRENT price (not a fixed dollar amount).
+    // This is the actual fix for the death-spiral bug: with a fixed-dollar
+    // vol, a crash that knocks price down makes that same dollar amount an
+    // ever-bigger percentage of the (now smaller) price, so each subsequent
+    // move gets relatively more violent — the market spirals straight to the
+    // floor and gets pinned there. Percentage-based vol is self-limiting: as
+    // price falls, the dollar size of each swing shrinks with it.
+    const vol = currentPrice * (levels[currentLevel].volatility / 1000);
     let open = currentPrice;
     let change;
 
@@ -178,9 +208,19 @@ function generateNewCandle() {
         updateModeUI("⏸️ Neutral");
     }
 
+    // Ease off the closer we get to the floor, regardless of which mode above set `change`
+    change = dampenNearFloor(change, currentPrice);
+
+    // Gentle background pull back toward a "fair value" reference price, so
+    // the market recovers naturally after a crash instead of staying pinned
+    // near whatever level it last crashed to. Deliberately weak (1.5% of the
+    // gap per candle) — it nudges, it doesn't override the active mode.
+    change += (REFERENCE_PRICE - currentPrice) * MEAN_REVERSION_STRENGTH;
+
     let close = open + change;
+    close = Math.max(close, MIN_PRICE); // hard safety net — price can never actually reach 0 or go negative
     let high = Math.max(open, close) + Math.random() * (vol / 3);
-    let low  = Math.min(open, close) - Math.random() * (vol / 3);
+    let low  = Math.max(Math.min(open, close) - Math.random() * (vol / 3), 1); // wicks can dip a little below MIN_PRICE, but never to 0/negative
 
     timeCounter += 1;
 

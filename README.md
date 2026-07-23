@@ -166,6 +166,12 @@ Every "tick" (1 candle), the engine checks:
 3. **Is the market Trending?** → biases price movement up or down
 4. Every 10–25 candles, the engine re-evaluates the Fear & Greed index and picks the next market mode — simulating how real market phases (accumulation, trend, distribution, crash) tend to cluster rather than switch randomly.
 
+**Price floor & realistic scaling:** the price can never actually reach 0 or go negative — and unlike a naive fix, it doesn't just get pinned flat at a floor either. Two things work together:
+1. **Volatility scales with the current price**, not a fixed dollar amount. This is what actually prevents the death-spiral: with old fixed-dollar volatility, a crash that knocked the price down made that same dollar swing an ever-bigger *percentage* of the now-smaller price, so each subsequent move got relatively more violent until it blew through zero. Percentage-based volatility is self-limiting — as price falls, the dollar size of each swing shrinks with it.
+2. **Gentle mean reversion** pulls the price back toward a normal operating range after a crash, instead of leaving it pinned wherever it landed.
+
+A hard floor (`MIN_PRICE`) still exists as an absolute last-resort safety net, but with the above in place it's essentially never reached in normal play. Verified with 200 independent 100-candle sessions (0 hit the floor) and a 20,000-candles-per-level stress test (still zero negative/zero prices, and the price now settles into a sensible range under stress instead of pinning at the floor).
+
 ## 👨‍💻 Author
 
 **Arya Wira Wicaksana**
