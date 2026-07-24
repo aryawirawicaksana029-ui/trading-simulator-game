@@ -19,6 +19,17 @@ Most trading education content is full of jargon (RSI, Fibonacci, Moving Average
 - **Level Progression** — each level increases volatility and candle speed, raising the difficulty and testing emotional discipline under pressure
 - **Win/Lose States** — Game Over screen on bankruptcy, Level Clear screen on reaching the profit target
 - **Persistent Leaderboard** *(optional, needs the Flask backend)* — submit your best run and see how you rank against other players
+- **🔴 Live BTC Mode** *(optional, needs the Flask/Vercel backend)* — trade real BTC/USDT price action streamed live from Binance, instead of the simulated engine. A separate sandbox alongside Levels 1–5, not a replacement for them — see below for why.
+
+## 🔴 Live BTC Mode — real Binance data, and why it's separate from Levels
+
+Click **🔴 Live BTC** to switch the chart to real, live BTC/USDT price action from Binance — the same Buy/Seatbelt/Sell mechanic, but on a real market instead of the simulated engine. Historical candles are backfilled from Binance's REST API (proxied through this project's own backend, since Binance's CORS support for direct browser requests is inconsistent); live updates after that stream in directly from Binance's public WebSocket (`wss://stream.binance.com`), which needs no proxy since CORS doesn't apply to WebSocket connections. Click **⏹ Exit Live BTC** to return to whichever simulated Level you were on.
+
+**Why this is an additive mode and not a replacement for Levels 1–5:** the simulated engine's crashes, Fear & Greed swings, Fake Breakout traps, and Whipsaw chop are all deliberately choreographed so a short play session reliably delivers specific lessons (why a Stop Loss matters, what Extreme Greed feels like right before a drop, etc.). Real market data can't be scripted that way — it might sit flat for your whole session, or crash at a moment that breaks a Level's balance. So Live Mode intentionally drops the target-balance/Level-clear curriculum (there's no "target" to reach, no Level to clear) and becomes a sandbox instead: watch and trade a real, unscripted market with the same Seatbelt discipline the rest of the game teaches. Trades still log to the Trading Diary, still get AI Coach commentary, and still count toward every achievement that isn't specifically tied to clearing a Level (First Trade, Hot Streak, Seatbelt Saved Me, Sniper, Contrarian, Rode the Wave, Big Balance, Comeback Kid, etc. all still apply). Bankruptcy (balance hitting $0) still ends the session with the normal Game Over screen — that lesson doesn't need scripting to be real.
+
+Note the Stop Loss / Take Profit prompt suggests a distance based on a percentage of the current price (1% / 2%) rather than a fixed dollar amount, since a "$10 stop loss" that makes sense on the simulated engine's ~$200 price is meaningless noise on a ~$65,000 BTC price.
+
+**Honesty note:** this was built and tested locally against a simulated Binance WebSocket/REST stand-in (message formats matched exactly to Binance's documented API), since this environment's outbound network access to Binance itself returned `403 Forbidden` — likely Binance blocking the sandbox's datacenter IP range, which is common exchange practice against scraping and shouldn't affect your own machine or a real Vercel deployment. If you deploy this and Binance's API is unreachable from your host for any reason, the Live BTC button will show a connection error rather than breaking the rest of the game.
 
 ## 🧠 The "Zero Jargon" Design Philosophy
 
@@ -38,25 +49,27 @@ Most trading education content is full of jargon (RSI, Fibonacci, Moving Average
 - **[TradingView Lightweight Charts](https://tradingview.github.io/lightweight-charts/)** — professional-grade candlestick rendering (via CDN, no build step needed)
 - **Flask + SQLite** *(optional, for local/self-hosted use)* — a tiny backend that persists the Leaderboard across sessions and players. Fully optional: every other feature works with zero backend, as a plain static site.
 - **Flask + Turso** *(optional, for deploying on Vercel)* — the same Leaderboard API, adapted to run as a Vercel serverless function backed by [Turso](https://turso.tech) (a hosted, SQLite-compatible database), since Vercel's functions don't have a persistent local disk.
+- **Binance public API** *(optional, for Live BTC Mode)* — REST `klines` endpoint (proxied server-side) for historical backfill, public WebSocket for live price updates. No API key needed, no account needed.
 
 ## 📁 Project Structure
 
 ```
 trading-simulator-game/
-├── index.html          # Page structure & markup
-├── style.css           # All styling (dark theme, cards, overlays)
-├── script.js           # Game state, market engine, trading logic (talks to /api/leaderboard either way)
-├── app.py              # Flask + local SQLite backend — for running on your own machine or PythonAnywhere
+├── index.html              # Page structure & markup
+├── style.css               # All styling (dark theme, cards, overlays)
+├── script.js               # Game state, market engine, trading logic, Live BTC Mode
+├── app.py                  # Flask backend — local SQLite leaderboard + Binance klines proxy
 ├── api/
-│   └── leaderboard.py  # Flask + Turso backend — becomes /api/leaderboard automatically when deployed on Vercel
-├── requirements.txt    # Python deps for either backend (Flask, libsql)
-├── .env.example        # Documents the two env vars api/leaderboard.py needs (copy to .env, never commit the real one)
-├── .gitignore           # Keeps leaderboard.db, .env, and __pycache__ out of version control
-├── leaderboard.db       # Created automatically the first time app.py runs (SQLite) — not checked in
+│   ├── leaderboard.py      # Flask + Turso — becomes /api/leaderboard automatically when deployed on Vercel
+│   └── binance-klines.py   # Flask — becomes /api/binance-klines automatically when deployed on Vercel
+├── requirements.txt        # Python deps for either backend (Flask, libsql)
+├── .env.example            # Documents the two Turso env vars (copy to .env, never commit the real one)
+├── .gitignore               # Keeps leaderboard.db, .env, and __pycache__ out of version control
+├── leaderboard.db           # Created automatically the first time app.py runs (SQLite) — not checked in
 └── README.md
 ```
 
-Only one of the two backends is "active" per deployment: run `app.py` yourself → it uses local SQLite. Deploy the whole folder to Vercel → `api/leaderboard.py` takes over automatically and talks to Turso instead. `script.js` doesn't know or care which one is answering — both expose the exact same `/api/leaderboard` contract.
+Only one of the two leaderboard backends is "active" per deployment: run `app.py` yourself → it uses local SQLite. Deploy the whole folder to Vercel → `api/leaderboard.py` takes over automatically and talks to Turso instead. `script.js` doesn't know or care which one is answering — both expose the exact same `/api/leaderboard` contract. The Binance klines proxy (`/api/binance-klines`) works the same way in both cases, no database involved — it just relays a public Binance endpoint.
 
 ## 🚀 How to Run
 
@@ -86,6 +99,7 @@ That's it — `leaderboard.db` is created automatically on first run. If you eve
 |---|---|---|---|
 | `GET` | `/api/leaderboard` | — | Returns the top 20 scores as JSON, sorted highest balance first |
 | `POST` | `/api/leaderboard` | `{ "name": "...", "balance": 12345.67, "level": "...", "outcome": "cleared" \| "bankrupt" \| "champion" }` | Adds one entry. `name` is trimmed to 20 characters; `balance` must be a finite number between 0 and 10,000,000. Returns `429` if the same IP has submitted 5+ times in the last 10 minutes. |
+| `GET` | `/api/binance-klines?symbol=BTCUSDT&interval=1m&limit=100` | — | Proxies Binance's public klines endpoint. `symbol` limited to `BTCUSDT`/`ETHUSDT`/`BNBUSDT`, `interval` to `1m`/`3m`/`5m`/`15m`/`1h`, `limit` capped at 500. Used once per Live BTC Mode session to backfill history — live updates come from a direct browser WebSocket to Binance, not this endpoint. |
 
 ⚠️ **Trust note:** this is a hobby-project leaderboard, not an anti-cheat system — anyone who can reach the API can `POST` a fake score directly (no login, no signature). The server only does basic sanity-checking on the data shape, not verification that a score was actually earned in-game. Fine for friends comparing runs; not something to expose publicly as a competitive leaderboard without adding real auth.
 

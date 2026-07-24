@@ -254,6 +254,14 @@ button:active { transform: scale(0.98); }
 #aiSettingsBtn:hover, #diaryBtn:hover, #tutorialBtn:hover, #soundToggleBtn:hover, #achievementsBtn:hover, #leaderboardBtn:hover {
     border-color: var(--amber);
 }
+#liveBtcBtn {
+    background: var(--panel-alt);
+    color: var(--text);
+    border: 1px solid var(--red-dim);
+    font-size: 13px;
+    padding: 13px 19px;
+}
+#liveBtcBtn:hover { border-color: var(--red); box-shadow: 0 0 14px rgba(255, 77, 94, 0.3); }
 
 /* --- Leaderboard score submission (Game Over / Win overlays) --- */
 .leaderboardSubmit {

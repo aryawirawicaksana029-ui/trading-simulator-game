@@ -35,6 +35,9 @@ game-state verification.
 import os
 import re
 import sqlite3
+import json
+import urllib.request
+import urllib.error
 from datetime import datetime, timedelta, timezone
 
 from flask import Flask, g, jsonify, request, send_from_directory
@@ -196,6 +199,57 @@ def post_leaderboard():
     )
     db.commit()
     return jsonify({"status": "ok"}), 201
+
+
+BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines"
+# Allowlists — this proxy only relays a few known-safe public market data
+# requests, it's not an open passthrough for arbitrary URLs/params.
+ALLOWED_SYMBOLS = {"BTCUSDT", "ETHUSDT", "BNBUSDT"}
+ALLOWED_INTERVALS = {"1m", "3m", "5m", "15m", "1h"}
+
+
+@app.route("/api/binance-klines", methods=["GET"])
+def get_binance_klines():
+    """Proxies Binance's public klines endpoint server-side, so the frontend
+    doesn't have to worry about whether Binance sends CORS headers for direct
+    browser requests (it's inconsistent) — this always works the same way
+    regardless, since server-to-server requests aren't subject to CORS."""
+    symbol = request.args.get("symbol", "BTCUSDT").upper()
+    interval = request.args.get("interval", "1m")
+
+    if symbol not in ALLOWED_SYMBOLS:
+        return jsonify({"error": "Unsupported symbol."}), 400
+    if interval not in ALLOWED_INTERVALS:
+        return jsonify({"error": "Unsupported interval."}), 400
+
+    try:
+        limit = max(1, min(int(request.args.get("limit", "100")), 500))
+    except ValueError:
+        limit = 100
+
+    url = f"{BINANCE_KLINES_URL}?symbol={symbol}&interval={interval}&limit={limit}"
+    try:
+        with urllib.request.urlopen(url, timeout=8) as resp:
+            raw = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.URLError as e:
+        return jsonify({"error": f"Could not reach Binance: {e}"}), 502
+    except Exception:
+        app.logger.exception("Binance klines proxy failed")
+        return jsonify({"error": "Failed to fetch or parse data from Binance."}), 502
+
+    # Binance's raw kline array: [openTime, open, high, low, close, volume, closeTime, ...]
+    # Reshaped here into the {time, open, high, low, close} object lightweight-charts expects.
+    candles = [
+        {
+            "time": int(row[0] // 1000),  # ms -> seconds
+            "open": float(row[1]),
+            "high": float(row[2]),
+            "low": float(row[3]),
+            "close": float(row[4]),
+        }
+        for row in raw
+    ]
+    return jsonify(candles)
 
 
 if __name__ == "__main__":

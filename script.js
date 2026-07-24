@@ -719,6 +719,7 @@ const TUTORIAL_STEPS = [
 ];
 
 function startTutorial() {
+    if (liveMode) stopLiveBTCMode();
     hideAllOverlays();
     tutorialActive = true;
     document.getElementById("levelText").innerText = "Level 0: Tutorial";
@@ -1116,14 +1117,167 @@ function triggerConfetti(count = 60) {
     }
 }
 
+// ================= LIVE BTC MODE (real Binance data) =================
+// A separate, additive mode — not a replacement for the Level 1-5 curriculum.
+// Levels stay exactly as they were (crashes, Fear/Greed swings, Fake
+// Breakout, etc. are all deliberately choreographed so a short session
+// reliably teaches specific lessons). Real market data can't be scripted
+// like that, so Live Mode drops the target/win-lose curriculum entirely and
+// is just a sandbox: watch real BTC/USDT price action from Binance and
+// practice the same Buy/Seatbelt/Sell mechanics on it. Trades still log to
+// the Diary, still earn AI Coach commentary, and still count toward every
+// achievement that isn't tied to clearing a specific Level.
+let liveMode = false;
+let liveWebSocket = null;
+let liveReconnectTimeout = null;
+
+async function startLiveBTCMode() {
+    if (liveMode) return;
+    hideAllOverlays();
+
+    if (gameInterval) clearInterval(gameInterval);
+    if (position) {
+        alert("Closing your current position before switching to Live BTC mode.");
+        sell("MANUAL");
+    }
+
+    liveMode = true;
+    marketMode = "LIVE_MARKET";
+    document.getElementById('levelText').innerText = "🔴 Live BTC/USDT";
+    document.getElementById('targetText').innerText = "—";
+    updateModeUI("Connecting to Binance…");
+    updateLiveBtnUI();
+
+    candleSeries.setData([]);
+    candleHistory = [];
+    timeCounter = Math.floor(Date.now() / 1000);
+
+    try {
+        const res = await fetch("/api/binance-klines?symbol=BTCUSDT&interval=1m&limit=100");
+        if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(errBody.error || `Server responded ${res.status}`);
+        }
+        const candles = await res.json();
+        candleSeries.setData(candles);
+        candleHistory = candles.map(c => ({ open: c.open, close: c.close }));
+        if (candles.length) {
+            currentPrice = candles[candles.length - 1].close;
+            timeCounter = candles[candles.length - 1].time;
+            document.getElementById('priceText').innerText = currentPrice.toFixed(2);
+        }
+        updateSentimentUI();
+    } catch (err) {
+        console.warn("Live BTC: history backfill failed —", err);
+        updateModeUI("⚠️ Couldn't load BTC history — see console");
+        // Still attempt the live WebSocket below; a player can watch/trade
+        // going forward even if the historical backfill didn't work (e.g.
+        // the backend isn't running, or Binance rejected the request).
+    }
+
+    connectLiveWebSocket();
+}
+
+function connectLiveWebSocket() {
+    clearTimeout(liveReconnectTimeout);
+    if (liveWebSocket) liveWebSocket.close();
+
+    try {
+        liveWebSocket = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@kline_1m");
+    } catch (err) {
+        console.warn("Live BTC: could not open WebSocket —", err);
+        updateModeUI("⚠️ Live connection failed");
+        return;
+    }
+
+    liveWebSocket.onopen = () => {
+        updateModeUI("🔴 LIVE — BTC/USDT (Binance)");
+    };
+
+    liveWebSocket.onmessage = (event) => {
+        let msg;
+        try {
+            msg = JSON.parse(event.data);
+        } catch (e) {
+            return;
+        }
+        const k = msg.k;
+        if (!k) return;
+
+        const candle = {
+            time: Math.floor(k.t / 1000),
+            open: parseFloat(k.o),
+            high: parseFloat(k.h),
+            low: parseFloat(k.l),
+            close: parseFloat(k.c),
+        };
+        candleSeries.update(candle);
+        currentPrice = candle.close;
+        document.getElementById('priceText').innerText = currentPrice.toFixed(2);
+
+        if (k.x) { // candle finalized/closed
+            candleHistory.push({ open: candle.open, close: candle.close });
+            if (candleHistory.length > 50) candleHistory.shift();
+            timeCounter = candle.time;
+        }
+
+        checkAutomation();
+        updateSentimentUI();
+    };
+
+    liveWebSocket.onerror = () => {
+        updateModeUI("⚠️ Live connection error — retrying…");
+    };
+
+    liveWebSocket.onclose = () => {
+        if (!liveMode) return; // this was an intentional close from stopLiveBTCMode()
+        updateModeUI("🔄 Reconnecting to Binance…");
+        liveReconnectTimeout = setTimeout(connectLiveWebSocket, 3000);
+    };
+}
+
+function stopLiveBTCMode() {
+    if (!liveMode) return;
+    liveMode = false;
+    clearTimeout(liveReconnectTimeout);
+    if (liveWebSocket) {
+        liveWebSocket.onclose = null; // don't let the reconnect handler fire on this intentional close
+        liveWebSocket.close();
+        liveWebSocket = null;
+    }
+    if (position) {
+        alert("Closing your current position before leaving Live BTC mode.");
+        sell("MANUAL");
+    }
+    updateLiveBtnUI();
+    loadLevel(currentLevel); // resume the simulated engine where they left off
+}
+
+function toggleLiveBTCMode() {
+    if (liveMode) stopLiveBTCMode();
+    else startLiveBTCMode();
+}
+
+function updateLiveBtnUI() {
+    const btn = document.getElementById("liveBtcBtn");
+    if (!btn) return;
+    btn.innerText = liveMode ? "⏹ Exit Live BTC" : "🔴 Live BTC";
+}
+
 // ================= TRADING ACTIONS =================
 function buy() {
     if (position !== null) {
         alert("You already have an open position! Sell it first before buying again.");
         return;
     }
-    let inputSL = prompt("Enter STOP LOSS distance (in $):", "10");
-    let inputTP = prompt("Enter TAKE PROFIT distance (in $):", "20");
+    // Suggested default is a percentage of the current price, not a fixed
+    // dollar amount — a $10 stop loss makes sense on a ~$200 simulated price,
+    // but is meaningless on a ~$65,000 Live BTC price (would trigger on
+    // almost any tick). 1% / 2% of current price scales sensibly either way.
+    const suggestedSL = Math.max(1, currentPrice * 0.01).toFixed(2);
+    const suggestedTP = Math.max(2, currentPrice * 0.02).toFixed(2);
+    let inputSL = prompt("Enter STOP LOSS distance (in $):", suggestedSL);
+    let inputTP = prompt("Enter TAKE PROFIT distance (in $):", suggestedTP);
     let slDist = parseFloat(inputSL);
     let tpDist = parseFloat(inputTP);
 
@@ -1158,7 +1312,7 @@ function buy() {
     const entryFG = calculateFearGreed();
     tradeLog.push({
         id: tradeId,
-        level: levels[currentLevel].name,
+        level: liveMode ? "🔴 Live BTC/USDT" : levels[currentLevel].name,
         entryPrice,
         entryFG,
         entryMode: marketMode,
@@ -1281,7 +1435,7 @@ function checkWinLose() {
         document.getElementById("leaderboardNameGO").value = localStorage.getItem("leaderboardPlayerName") || "";
         document.getElementById("leaderboardFeedbackGO").textContent = "";
         showOverlay("gameOverOverlay");
-    } else if (balance >= levels[currentLevel].target) {
+    } else if (!liveMode && balance >= levels[currentLevel].target) {
         clearInterval(gameInterval);
         if (currentLevel === 0) unlockAchievement("level_clear_1");
         requestAICommentary({ type: "LEVEL_CLEAR", balance, target: levels[currentLevel].target });
@@ -1321,7 +1475,12 @@ function restartLevel() {
     openTradeId = null;
     document.getElementById('balanceText').innerText = balance.toFixed(2);
     document.getElementById('positionText').innerText = "None";
-    loadLevel(0);
+    if (liveMode) {
+        liveMode = false; // let startLiveBTCMode() run its full (re)connect cycle
+        startLiveBTCMode();
+    } else {
+        loadLevel(0);
+    }
 }
 
 function nextLevel() {
@@ -1338,6 +1497,7 @@ document.getElementById("tutorialBtn").addEventListener("click", startTutorial);
 document.getElementById("soundToggleBtn").addEventListener("click", toggleSound);
 document.getElementById("achievementsBtn").addEventListener("click", openAchievements);
 document.getElementById("leaderboardBtn").addEventListener("click", openLeaderboard);
+document.getElementById("liveBtcBtn").addEventListener("click", toggleLiveBTCMode);
 
 updateSoundButtonUI();
 loadAISettingsFromSession();
